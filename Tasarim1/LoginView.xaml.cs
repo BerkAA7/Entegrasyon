@@ -3,31 +3,23 @@ using System.Data;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Microsoft.Win32;
-using Excel = Microsoft.Office.Interop.Excel;
 using System.IO;
 using System.Xml;
-using Flurl.Http;
 using System.Threading.Tasks;
-using System.Net;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using System.Windows.Documents;
-using System.Xml.XPath;
 using System.Globalization;
 using System.Linq;
+using Flurl.Http;
 using System.Threading;
 using System.Windows.Media;
 using System.Text;
-using WPF_LoginForm;
-using Tasarim1;
-using System.Reflection;
-using System.Windows.Controls.Primitives;
-using ExcelToPanorama;
-using ClosedXML.Excel;
-using ExcelToPanorama.Interface;
 using OfficeOpenXml;
+using System.Reflection;
+using ExcelToPanorama;
+using ExcelToPanorama.Interface;
 
 
 namespace WPF_LoginForm.View
@@ -156,7 +148,9 @@ namespace WPF_LoginForm.View
                 else
                 {
                     // Pencere açık değil, yeni bir pencere oluştur ve göster
-                    KolonIsterler ekran = new KolonIsterler();
+                    // Gerekli parametreleri sağla
+                    ILoginView loginView = new LoginView();
+                    KolonIsterler ekran = new KolonIsterler(loginView);
                     ekran.Show();
                 }
             }
@@ -232,9 +226,12 @@ namespace WPF_LoginForm.View
                 using (var package = new ExcelPackage(new FileInfo(filePath)))
                 {
                     var worksheet = package.Workbook.Worksheets[0]; // İlk sayfayı seç
-                    var rows = worksheet.RowsUsed().Skip(1); // İlk satırı başlık olarak say
 
-                    for (int row = 2; row <= worksheet.Dimension.End.Row; row++) // Başlık satırından başlayarak okuma
+                    // Verileri okuyun, başlık satırını atlayın
+                    var startRow = 2; // Başlık satırından sonraki ilk veri satırı
+
+                    // Worksheet'teki satırları kontrol et
+                    for (int row = startRow; row <= worksheet.Dimension.End.Row; row++)
                     {
                         var musteri = new Musteri
                         {
@@ -243,9 +240,7 @@ namespace WPF_LoginForm.View
                         musteriList.Add(musteri); // Listeye ekleme
                     }
                 }
-                return musteriList;
             }
-
             catch (Exception ex)
             {
                 MessageBox.Show($"Bir hata oluştu: {ex.Message}");
