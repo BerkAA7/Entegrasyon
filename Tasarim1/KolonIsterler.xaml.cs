@@ -1,5 +1,4 @@
-﻿using ClosedXML.Excel;
-using ExcelToPanorama;
+﻿using ExcelToPanorama;
 using ExcelToPanorama.Interface;
 using System;
 using System.Collections.Generic;
