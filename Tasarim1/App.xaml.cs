@@ -1,12 +1,7 @@
-﻿using ExcelToPanorama.Interface;
+﻿
+using ExcelToPanorama.Interface;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Web.Services.Description;
 using System.Windows;
 using WPF_LoginForm.View;
 
@@ -28,10 +23,11 @@ namespace Tasarim1
             var serviceCollection = new ServiceCollection();
             ConfigureServices(serviceCollection);
 
+            //ServiceProvider = serviceCollection.BuildServiceProvider();
             ServiceProvider = serviceCollection.BuildServiceProvider();
 
-            var kolonIsterler = ServiceProvider.GetRequiredService<KolonIsterler>();
-            kolonIsterler.Show();
+            //var kolonIsterler = ServiceProvider.GetRequiredService<KolonIsterler>();
+            //kolonIsterler.Show();
         }
 
         private void ConfigureServices(IServiceCollection services)

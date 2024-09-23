@@ -27,7 +27,6 @@ using System.Windows.Controls.Primitives;
 using ExcelToPanorama;
 using ClosedXML.Excel;
 using ExcelToPanorama.Interface;
-using OfficeOpenXml;
 
 
 namespace WPF_LoginForm.View
@@ -39,10 +38,15 @@ namespace WPF_LoginForm.View
         private CancellationTokenSource cancellationTokenSource;
 
         private DataTable dataTable;
+        public static LoginView CurrentInstance { get; private set; }
+
+
         public LoginView()
         {
             InitializeComponent();
             VersionRun.Text = GetVersionNumber();//version numarası yazıldı
+            CurrentInstance = this; // Mevcut örneği sakla
+
 
         }
         private void btnHome_Click(object sender, RoutedEventArgs e)
@@ -140,7 +144,7 @@ namespace WPF_LoginForm.View
 
             return parent as DataGridCell;
         }
-        
+
         private void btnKolonSabitleriniDegistir_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -156,7 +160,8 @@ namespace WPF_LoginForm.View
                 else
                 {
                     // Pencere açık değil, yeni bir pencere oluştur ve göster
-                    KolonIsterler ekran = new KolonIsterler();
+                    //LoginView loginView = new LoginView();
+                    KolonIsterler ekran = new KolonIsterler(CurrentInstance);
                     ekran.Show();
                 }
             }
@@ -229,23 +234,46 @@ namespace WPF_LoginForm.View
         {
             try
             {
-                using (var package = new ExcelPackage(new FileInfo(filePath)))
+                musteriList.Clear();
+                using (var workbook = new XLWorkbook(filePath))
                 {
-                    var worksheet = package.Workbook.Worksheets[0]; // İlk sayfayı seç
+                    var worksheet = workbook.Worksheet(1); // İlk sayfayı seç
                     var rows = worksheet.RowsUsed().Skip(1); // İlk satırı başlık olarak say
+                    var headers = worksheet.Row(1).Cells().Select(c => c.GetString()).ToList();
+                    var columnIndices = headers.Select((header, index) => new { header, index }).ToDictionary(x => x.header, x => x.index + 1);
 
-                    for (int row = 2; row <= worksheet.Dimension.End.Row; row++) // Başlık satırından başlayarak okuma
+                    foreach (var row in rows)
                     {
                         var musteri = new Musteri
                         {
-                            Durum = worksheet.Cells[row, 1].Text // 1. sütundaki veriyi al
+                            Durum = row.Cell(columnIndices.ContainsKey("Durum") ? columnIndices["Durum"] : 1).GetString(),
+                            MusteriKodu = row.Cell(columnIndices.ContainsKey("MusteriKodu") ? columnIndices["MusteriKodu"] : 2).GetString(),
+                            Unvan = row.Cell(columnIndices.ContainsKey("Unvan") ? columnIndices["Unvan"] : 3).GetString(),
+                            IlgiliKisi = row.Cell(columnIndices.ContainsKey("IlgiliKisi") ? columnIndices["IlgiliKisi"] : 4).GetString(),
+                            Adres = row.Cell(columnIndices.ContainsKey("Adres") ? columnIndices["Adres"] : 5).GetString(),
+                            Sehir = row.Cell(columnIndices.ContainsKey("Şehir") ? columnIndices["Şehir"] : 6).GetString(),
+                            Ilce = row.Cell(columnIndices.ContainsKey("İlçe") ? columnIndices["İlçe"] : 7).GetString(),
+                            TcNo = row.Cell(columnIndices.ContainsKey("Tc No") ? columnIndices["Tc No"] : 8).GetString(),
+                            Telefon = row.Cell(columnIndices.ContainsKey("Telefon") ? columnIndices["Telefon"] : 9).GetString(),
+                            VergiDairesi = row.Cell(columnIndices.ContainsKey("Vergi Dairesi") ? columnIndices["Vergi Dairesi"] : 10).GetString(),
+                            VergiNumarasi = row.Cell(columnIndices.ContainsKey("Vergi Numarası") ? columnIndices["Vergi Numarası"] : 11).GetString(),
+                            MusteriGrubu = row.Cell(columnIndices.ContainsKey("MusteriGrubu") ? columnIndices["MusteriGrubu"] : 12).GetString(),
+                            MusteriEkGrubu = row.Cell(columnIndices.ContainsKey("MusteriEkGrubu") ? columnIndices["MusteriEkGrubu"] : 13).GetString(),
+                            OdemeTipi = row.Cell(columnIndices.ContainsKey("OdemeTipi") ? columnIndices["OdemeTipi"] : 14).GetString(),
+                            KisaAdi = row.Cell(columnIndices.ContainsKey("KisaAdi") ? columnIndices["KisaAdi"] : 15).GetString(),
+                            VergiTipi = row.Cell(columnIndices.ContainsKey("VergiTipi") ? columnIndices["VergiTipi"] : 16).GetString(),
+                            KoordinatX = row.Cell(columnIndices.ContainsKey("Koordinat X") ? columnIndices["Koordinat X"] : 17).GetString(),
+                            KoordinatY = row.Cell(columnIndices.ContainsKey("Koordinat Y") ? columnIndices["Koordinat Y"] : 18).GetString(),
+                            VadeGunu = row.Cell(columnIndices.ContainsKey("VADE GÜNÜ") ? columnIndices["VADE GÜNÜ"] : 19).GetString(),
+                            Iskonto = row.Cell(columnIndices.ContainsKey("İSKONTO") ? columnIndices["İSKONTO"] : 20).GetString()
+
+
                         };
                         musteriList.Add(musteri); // Listeye ekleme
                     }
+                    //_ = musteriList;
                 }
-                return musteriList;
             }
-
             catch (Exception ex)
             {
                 MessageBox.Show($"Bir hata oluştu: {ex.Message}");
@@ -256,6 +284,14 @@ namespace WPF_LoginForm.View
         public List<IMusteri> GetMusteriList()
         {
             return musteriList; // Global listeyi döndürme
+        }
+        public void MusteriAL(List<IMusteri> GuncellenmisMustList)
+        {
+            musteriList = GuncellenmisMustList;
+            dataGrid.ItemsSource = musteriList;
+            dataGrid.Items.Refresh(); // DataGrid'i yenile
+
+            //return musteriList; // Global listeyi döndürme
         }
         private async void btnExcelYükle_Click(object sender, RoutedEventArgs e)
         {
@@ -273,8 +309,7 @@ namespace WPF_LoginForm.View
                 List<IMusteri> musteri = ReadExcelFile(filePath);
                 if (musteri != null && musteri.Any())
                 {
-                    dataGrid.ItemsSource = musteri;
-                    dataGrid.Items.Refresh(); // DataGrid'i yenile
+                    this.MusteriAL(musteri);
                 }
                 else
                 {
@@ -474,12 +509,14 @@ namespace WPF_LoginForm.View
             string calismaYili = txtCalismaYili.Text;
             string UserName = txtKullaniciTipi.Text;
 
-            if (dataTable == null)
+            if (musteriList == null)
             {
                 var mesaj = new Tasarim1.BildirimMesaji("Lütfen Bir Excel Dosyası Yükleyin!");
                 mesaj.Show();
                 return;
             }
+
+
 
             cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = cancellationTokenSource.Token;
@@ -661,7 +698,7 @@ namespace WPF_LoginForm.View
                 }
             }
         }
-  
+
         //AKTARILAN HÜCRELERİ BOYAMA
         private void HighlightInvalidCells(DataRow row, Color color)
         {
@@ -963,6 +1000,11 @@ namespace WPF_LoginForm.View
         {
 
         }
+
+        private void dataGrid_SelectionChanged_2(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
     public enum RequiredColumns//zorunlu alanlar
     {
@@ -977,7 +1019,7 @@ namespace WPF_LoginForm.View
         VergiTipi
     }
 
-    
+
     public enum VergiTipiEnum
     {
         KDVdenMuaf = 1,
@@ -1008,6 +1050,6 @@ namespace WPF_LoginForm.View
         PotansiyelPasif = 4,
         PotansiyelAktif = 5
     }
-   
+
 
 }

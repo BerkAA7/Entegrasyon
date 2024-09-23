@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using Tasarim1;
 
 namespace WPF_LoginForm.View
@@ -19,13 +20,11 @@ namespace WPF_LoginForm.View
         {
             InitializeComponent();
             _loginView = loginView;
-            var filePath = "path_to_your_excel_file.xlsx";
-            _loginView.ReadExcelFile(filePath);
-            var musteriler = _loginView.GetMusteriList();
-            foreach (var musteri in musteriler)
-            {
-                MessageBox.Show(musteri.Durum);
-            }
+            //var filePath = "path_to_your_excel_file.xlsx";
+            //_loginView.ReadExcelFile(filePath);
+            musteriList = _loginView.GetMusteriList();
+            //LoadDataFromFile(filePath, musteri);
+
         }
 
         private void Window_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -47,12 +46,33 @@ namespace WPF_LoginForm.View
 
         private async void btnKaydet_Click(object sender, RoutedEventArgs e)
         {
-            if (musteriList != null || musteriList == null)
+            if (musteriList != null)
             {
+                var lines = new List<string>();
+
+                // Kullanıcıdan alınan değer (örneğin bir textbox'tan alınabilir)
+
                 foreach (var musteri in musteriList)
                 {
-                    var lines = new List<string>
-            {
+                    // Boş alanları kontrol et ve sadece boş olanlara değer atama yap
+                    if (string.IsNullOrEmpty(musteri.Durum))
+                        musteri.Durum = txtDurum.Text;// Kullanıcıdan alınacak değer gelmeli
+                    if (string.IsNullOrEmpty(musteri.IlgiliKisi))
+                        musteri.IlgiliKisi = txtIlgiliKisi.Text; // Kullanıcıdan alınacak değer gelmeli
+                    if (string.IsNullOrEmpty(musteri.MusteriGrubu))
+                        musteri.MusteriGrubu = txtMüsteriGrubu.Text; // Kullanıcıdan alınacak değer gelmeli
+                    if (string.IsNullOrEmpty(musteri.MusteriEkGrubu))
+                        musteri.MusteriEkGrubu = txtMusteriEkgrup.Text; // Kullanıcıdan alınacak değer gelmeli
+                    if (string.IsNullOrEmpty(musteri.OdemeTipi))
+                        musteri.OdemeTipi = txtOdemeTipi.Text; // Kullanıcıdan alınacak değer gelmeli
+                    if (string.IsNullOrEmpty(musteri.KisaAdi))
+                        musteri.KisaAdi = txtKisaAdi.Text; // Kullanıcıdan alınacak değer gelmeli
+
+                    // Boş MusteriKodu alanını doldur
+                   
+
+                   var line = new List<string>
+           {
                 $"Durum={musteri.Durum}",
                 $"MusteriKodu={musteri.MusteriKodu}",
                 $"Unvan={musteri.Unvan}",
@@ -62,96 +82,91 @@ namespace WPF_LoginForm.View
                 $"OdemeTipi={musteri.OdemeTipi}",
                 $"KisaAdi={musteri.KisaAdi}",
                 $"VergiTipi={musteri.VergiTipi}"
-            };
-                    try
-                    {
-                        // Verileri text dosyasına yaz
-                        File.WriteAllLines(filePath, lines);
+           };
 
-                        // İlk mesajı göster
-                        var mesaj1 = new Tasarim1.BildirimMesaji($"Dosya başarıyla kaydedildi: {filePath}");
-                        mesaj1.Show();
-
-                        // Mesajı belirli bir süre sonra kapat
-                        await Task.Delay(2000); // 2 saniye bekle
-                        mesaj1.Close();
-
-                        // İkinci mesajı göster
-                        var mesaj2 = new Tasarim1.BildirimMesaji("Bilgiler kaydediliyor..!");
-                        mesaj2.Show();
-
-                        // Kaydetme işlemi için kısa bir süre bekle
-                        await Task.Delay(500); // 0.5 saniye bekle
-                        mesaj2.Close();
-
-                        this.Close();
-                    }
-                    catch (Exception ex)
-                    {
-                        // Hata mesajını göster
-                        var mesajHata = new Tasarim1.BildirimMesaji($"Bir hata oluştu: {ex.Message}");
-                        mesajHata.Show();
-
-                        // Hata mesajını belirli bir süre sonra kapat
-                        await Task.Delay(2000); // 2 saniye bekle
-                        mesajHata.Close();
-                    }
+                    lines.Add(string.Join(Environment.NewLine, line));
                 }
-                
+
+                try
+                {
+                    // Tüm satırları dosyaya yaz
+                    File.WriteAllLines(filePath, lines);
+
+                    // Başarı mesajı göster
+                    var mesaj1 = new Tasarim1.BildirimMesaji($"Dosya başarıyla kaydedildi: {filePath}");
+                    mesaj1.Show();
+                    await Task.Delay(2000); // 2 saniye bekle
+                    mesaj1.Close();
+                }
+                catch (Exception ex)
+                {
+                    // Hata mesajını göster
+                    var mesajHata = new Tasarim1.BildirimMesaji($"Bir hata oluştu: {ex.Message}");
+                    mesajHata.Show();
+                    await Task.Delay(2000); // 2 saniye bekle
+                    mesajHata.Close();
+                }
+
+                // Dosyadan verileri yükle
+                var musteriq = _loginView.GetMusteriList();
+                LoadDataFromFile(filePath, musteriq);
             }
         }
-        public void LoadDataFromFile(string filePath, List<IMusteri> musteriList)
+        public void LoadDataFromFile(string filePath, List<IMusteri> GuncellenecekMusteriList)
         {
+
             // Dosya var mı kontrol et
             if (File.Exists(filePath))
             {
                 var lines = File.ReadAllLines(filePath);
 
                 // Her bir satırı işle
-                foreach (var line in lines)
-                {
-                    var keyValue = line.Split('=');
-                    if (keyValue.Length == 2)
-                    {
-                        var key = keyValue[0].Trim();
-                        var value = keyValue[1].Trim();
+                //foreach (var line in lines)
+                //{
+                //    var keyValue = line.Split('=');
+                //    if (keyValue.Length == 2)
+                //    {
+                //        var key = keyValue[0].Trim();
+                //        var value = keyValue[1].Trim();
 
-                        // Her bir 'Musteri' nesnesini kontrol et
-                        foreach (var musteri in musteriList)
-                        {
-                            switch (key)
-                            {
-                                case "Durum":
-                                    musteri.Durum = value;
-                                    break;
-                                case "MusteriKodu":
-                                    musteri.MusteriKodu = value;
-                                    break;
-                                case "Unvan":
-                                    musteri.Unvan = value;
-                                    break;
-                                case "IlgiliKisi":
-                                    musteri.IlgiliKisi = value;
-                                    break;
-                                case "MusteriGrubu":
-                                    musteri.MusteriGrubu = value;
-                                    break;
-                                case "MusteriEkGrubu":
-                                    musteri.MusteriEkGrubu = value;
-                                    break;
-                                case "OdemeTipi":
-                                    musteri.OdemeTipi = value;
-                                    break;
-                                case "KisaAdi":
-                                    musteri.KisaAdi = value;
-                                    break;
-                                case "VergiTipi":
-                                    musteri.VergiTipi = value;
-                                    break;
-                            }
-                        }
-                    }
-                }
+                //        // Her bir 'Musteri' nesnesini kontrol et
+                //        foreach (var musteri in GuncellenecekMusteriList)
+                //        {
+                //            switch (key)
+                //            {
+                //                case "Durum":
+                //                    musteri.Durum = value;
+                //                    break;
+                //                case "MusteriKodu":
+                //                    musteri.MusteriKodu = value;
+                //                    break;
+                //                case "Unvan":
+                //                    musteri.Unvan = value;
+                //                    break;
+                //                case "IlgiliKisi":
+                //                    musteri.IlgiliKisi = value;
+                //                    break;
+                //                case "MusteriGrubu":
+                //                    musteri.MusteriGrubu = value;
+                //                    break;
+                //                case "MusteriEkGrubu":
+                //                    musteri.MusteriEkGrubu = value;
+                //                    break;
+                //                case "OdemeTipi":
+                //                    musteri.OdemeTipi = value;
+                //                    break;
+                //                case "KisaAdi":
+                //                    musteri.KisaAdi = value;
+                //                    break;
+                //                case "VergiTipi":
+                //                    musteri.VergiTipi = value;
+                //                    break;
+                //            }
+                //        }
+                        // loginview'daki global değişkene musteriList'i gonder
+                        _loginView.MusteriAL(GuncellenecekMusteriList);
+                    //}
+                //}
             }
             else
             {
@@ -159,6 +174,5 @@ namespace WPF_LoginForm.View
                 MessageBox.Show("Belirtilen dosya bulunamadı.");
             }
         }
-
     }
 }

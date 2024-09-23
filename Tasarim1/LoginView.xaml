@@ -450,7 +450,7 @@
           SelectionUnit="FullRow"
           EnableRowVirtualization="False"
           EnableColumnVirtualization="False"
-          AutoGenerateColumns="True">
+          AutoGenerateColumns="True" SelectionChanged="dataGrid_SelectionChanged_2">
 
                 <DataGrid.Resources>
                     <!-- DataGridColumnHeader stil tanımı -->

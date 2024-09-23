@@ -10,5 +10,6 @@ namespace ExcelToPanorama.Interface
     {
         List<IMusteri> ReadExcelFile(string filePath);
         List<IMusteri> GetMusteriList();
+        void MusteriAL(List<IMusteri> list);
     }
 }
