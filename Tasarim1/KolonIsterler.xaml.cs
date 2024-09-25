@@ -35,7 +35,12 @@ namespace WPF_LoginForm.View
         }
         private void btnKapat_Click(object sender, RoutedEventArgs e)
         {
+            kapat();
+        }
+        private void kapat()
+        {
             this.Close();
+
         }
         private void btnMin_Click(object sender, RoutedEventArgs e)
         {
@@ -96,6 +101,7 @@ namespace WPF_LoginForm.View
                     mesaj1.Show();
                     await Task.Delay(2000); // 2 saniye bekle
                     mesaj1.Close();
+                    kapat();
                 }
                 catch (Exception ex)
                 {

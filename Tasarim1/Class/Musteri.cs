@@ -31,7 +31,6 @@ namespace ExcelToPanorama
         public string KoordinatY { get; set; }
         public string VadeGunu { get; set; }
         public string Iskonto { get; set; }
-        public bool? secim { get ; set ; }
     }
 
 }

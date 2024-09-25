@@ -9,7 +9,6 @@ namespace ExcelToPanorama
 {
     public interface IMusteri
     {
-        bool? secim { get; set; }
         string Durum { get; set; }
         string MusteriKodu { get; set; }
         string Unvan { get; set; }
