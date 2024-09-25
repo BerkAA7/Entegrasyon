@@ -462,17 +462,6 @@
                         </Style.Triggers>
                     </Style>
                 </DataGrid.Resources>
-
-                <DataGrid.Columns>
-                    <!-- Seçim sütunu -->
-                    <DataGridTemplateColumn Header="Seç">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding Path=Seç, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
             </DataGrid>
 
 

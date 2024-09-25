@@ -169,20 +169,16 @@ namespace WPF_LoginForm.View
         // Tüm satırları seç
         private void chkSelectAll_Checked(object sender, RoutedEventArgs e)
         {
-            if (dataTable != null)
+            if (musteriList != null)
             {
-                if (!dataTable.Columns.Contains("Seç"))
+                // Tüm kayıtların "Seç" özelliğini true yap
+                foreach (var musteri in musteriList)
                 {
-                    dataTable.Columns.Add("Seç", typeof(bool));
-                }
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    row["Seç"] = true; // Seç kolonundaki tüm değerleri true yap
+                    musteri.Secim = true; // Seçim kolonundaki değeri true yap
                 }
 
                 // DataGrid'in güncellenmesini sağlamak için
-                dataGrid.ItemsSource = dataTable.DefaultView;
+                dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
                 dataGrid.Items.Refresh(); // DataGrid'i yenile
             }
         }
@@ -190,20 +186,16 @@ namespace WPF_LoginForm.View
         // Tüm seçimleri kaldır
         private void chkSelectAll_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (dataTable != null)
+            if (musteriList != null)
             {
-                if (!dataTable.Columns.Contains("Seç"))
+                // Tüm kayıtların "Seç" özelliğini false yap
+                foreach (var musteri in musteriList)
                 {
-                    dataTable.Columns.Add("Seç", typeof(bool));
-                }
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    row["Seç"] = false; // Seç kolonundaki tüm değerleri false yap
+                    musteri.Secim = false; // Seçim kolonundaki değeri false yap
                 }
 
                 // DataGrid'in güncellenmesini sağlamak için
-                dataGrid.ItemsSource = dataTable.DefaultView;
+                dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
                 dataGrid.Items.Refresh(); // DataGrid'i yenile
             }
         }
@@ -411,7 +403,9 @@ namespace WPF_LoginForm.View
         //                if (new[] { "DURUM", "MusteriKodu", "Unvan", "IlgiliKisi", "MusteriGrubu", "MusteriEkGrubu", "OdemeTipi", "KisaAdi", "VergiTipi" }
         //                    .Contains(column.Header.ToString()))
         //                {
-        //                    var headerStyle = new Style(typeof(DataGridColumnHeader));
+        //                    var headerStyle = new Style(typeof
+        //
+        //                    ataGridColumnHeader));
         //                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.Red));
         //                    column.HeaderStyle = headerStyle;
         //                }
@@ -503,7 +497,7 @@ namespace WPF_LoginForm.View
             string calismaYili = txtCalismaYili.Text;
             string UserName = txtKullaniciTipi.Text;
 
-            if (musteriList == null)
+            if (musteriList == null || !musteriList.Any())
             {
                 var mesaj = new Tasarim1.BildirimMesaji("Lütfen Bir Excel Dosyası Yükleyin!");
                 mesaj.Show();
@@ -511,21 +505,22 @@ namespace WPF_LoginForm.View
             }
 
 
-
             cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = cancellationTokenSource.Token;
 
             try
             {
-                CheckInvalidCharactersInExcel();
+                List<IMusteri> musteriList = GetMusteriList(); // Müşteri listesini alacak bir metot varsayıyoruz
+                List<IMusteri> rowsToProcess = GetCheckedRowsFromMusteriList(musteriList);
 
-                if (!CheckRequiredColumns(dataTable))
+                if (!rowsToProcess.Any())
                 {
+                    var mesaj = new Tasarim1.BildirimMesaji("Lütfen Gönderilecek Satırları Seçin!");
+                    mesaj.Show();
                     return;
                 }
 
-                // İşaretli CheckBox'lara sahip satırları al
-                var rowsToProcess = GetCheckedRows();
+                rtbErrorMessages.Document.Blocks.Clear(); // Önceki hata mesajlarını temizle
 
                 if (rowsToProcess.Count == 0)
                 {
@@ -535,8 +530,7 @@ namespace WPF_LoginForm.View
                 }
 
                 rtbErrorMessages.Document.Blocks.Clear(); // Önceki hata mesajlarını temizle
-
-                foreach (var row in rowsToProcess)
+                foreach (var musteri in rowsToProcess)
                 {
                     try
                     {
@@ -546,28 +540,26 @@ namespace WPF_LoginForm.View
                             cancellationToken.ThrowIfCancellationRequested();
                         }
 
-                        // Tüm hücrelerin boş olup olmadığını kontrol edin
-                        bool allCellsEmpty = true;
-                        foreach (var cell in row.ItemArray)
+                        // Tüm müşteri bilgileri boş mu kontrol et
+                        if (string.IsNullOrEmpty(musteri.Durum) &&
+    string.IsNullOrEmpty(musteri.MusteriKodu) &&
+    string.IsNullOrEmpty(musteri.Unvan) &&
+    string.IsNullOrEmpty(musteri.IlgiliKisi) &&
+    string.IsNullOrEmpty(musteri.MusteriGrubu) &&
+    string.IsNullOrEmpty(musteri.MusteriEkGrubu) &&
+    string.IsNullOrEmpty(musteri.OdemeTipi) &&
+    string.IsNullOrEmpty(musteri.KisaAdi) &&
+    string.IsNullOrEmpty(musteri.VergiTipi))
                         {
-                            if (!string.IsNullOrEmpty(cell?.ToString()))
-                            {
-                                allCellsEmpty = false;
-                                break;
-                            }
-                        }
-
-                        if (allCellsEmpty)
-                        {
-                            var mesaj = new Tasarim1.BildirimMesaji("Seçili satırda tüm hücreler boş. Veri aktarımı durduruluyor.");
+                            var mesaj = new Tasarim1.BildirimMesaji("Seçili satırda gerekli hücreler boş. Veri aktarımı durduruluyor.");
                             mesaj.Show();
                             return; // Veri aktarımını durdur
                         }
 
                         // Hücrelerin arka plan rengini temizleyin
-                        ClearRowCellBackground(row);
+                        ClearRowCellBackground(musteri);
 
-                        var customers = new List<Tasarim1.CustomerIntegration> { MapRowToCustomer(row) };
+                        var customers = new List<Tasarim1.CustomerIntegration> { MapMusteriToCustomer(musteri) };
                         string xmlData = ConvertCustomersToXML(customers, UserName, panServisSifresi, firmaKodu, calismaYili, dist);
 
                         var response = await panServisLinki
@@ -578,17 +570,16 @@ namespace WPF_LoginForm.View
                         string responseString = await response.GetStringAsync();
                         string errorMessage = ParseErrorMessageFromResponse(responseString);
 
-                        // `MusteriKodu` değerini satırdan al
-                        string musteriKodu = row["MusteriKodu"].ToString();
+                        string musteriKodu = musteri.MusteriKodu;
 
                         if (!string.IsNullOrEmpty(errorMessage))
                         {
-                            HighlightInvalidCells(row, Colors.LightCoral);
+                            HighlightInvalidCells(musteri, Colors.LightCoral); // Hata durumunda LightCoral rengi
                             AppendErrorMessage($"Hata: {errorMessage}", musteriKodu);
                         }
                         else
                         {
-                            HighlightSuccessfulCells(row, Colors.LightGreen);
+                            HighlightSuccessfulCells(musteri, Colors.LightGreen); // Başarılı durumunda LightGreen rengi
                             AppendErrorMessage("Başarılı bir şekilde aktarım gerçekleşti", musteriKodu);
                         }
                     }
@@ -596,8 +587,8 @@ namespace WPF_LoginForm.View
                     {
                         string errorResponse = await ex.GetResponseStringAsync();
                         string errorMessage = ParseErrorMessage(errorResponse);
-                        string musteriKodu = row["MusteriKodu"].ToString();
-                        HighlightInvalidCells(row, Colors.LightCoral);
+                        string musteriKodu = musteri.MusteriKodu;
+                        HighlightInvalidCells(musteri, Colors.LightCoral);
                         AppendErrorMessage($"Hata: {ex.Message}\nYanıt: {errorMessage}", musteriKodu);
                     }
                     catch (System.Security.SecurityException ex)
@@ -608,8 +599,8 @@ namespace WPF_LoginForm.View
                     }
                     catch (Exception ex)
                     {
-                        string musteriKodu = row["MusteriKodu"].ToString();
-                        HighlightInvalidCells(row, Colors.LightCoral);
+                        string musteriKodu = musteri.MusteriKodu;
+                        HighlightInvalidCells(musteri, Colors.LightCoral);
                         AppendErrorMessage($"Hata: {ex.Message}", musteriKodu);
                     }
 
@@ -630,25 +621,20 @@ namespace WPF_LoginForm.View
         }
         private void SetAllCheckBoxes(bool isChecked)
         {
-            // DataGrid'in Items koleksiyonunda gezinin
-            foreach (var item in dataGrid.Items)
+            // Musteri listesinin her bir öğesi üzerinde gezinin
+            foreach (var musteri in musteriList)
             {
-                // DataGrid'in öğelerini DataRowView olarak tip değiştirin
-                if (item is DataRowView rowView)
-                {
-                    // Seçim CheckBox'ını bulup işaretleyin veya temizleyin
-                    var checkBox = GetCheckBoxForRow(rowView.Row);
-                    if (checkBox != null)
-                    {
-                        checkBox.IsChecked = isChecked;
-                    }
-                }
+                // Her müşteri için seçim durumunu ayarlayın
+                musteri.Secim = isChecked;
             }
-        }
 
-        private CheckBox GetCheckBoxForRow(DataRow row)
+            // DataGrid'in güncellenmesini sağlamak için
+            dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
+            dataGrid.Items.Refresh(); // DataGrid'i yenile
+        }
+        private CheckBox GetCheckBoxForRow(Musteri musteri)
         {
-            int rowIndex = dataTable.Rows.IndexOf(row);
+            int rowIndex = musteriList.IndexOf(musteri);
 
             if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
                 return null;
@@ -665,6 +651,7 @@ namespace WPF_LoginForm.View
 
             if (rowContainer != null)
             {
+                // CheckBox'ın bulunduğu hücreyi al
                 var cellContent = dataGrid.Columns[0].GetCellContent(rowContainer);
                 var checkBox = cellContent as CheckBox;
 
@@ -673,11 +660,13 @@ namespace WPF_LoginForm.View
 
             return null;
         }
-
-
-        private void ClearRowCellBackground(DataRow row)
+        private void ClearRowCellBackground(IMusteri musteri)
         {
-            int rowIndex = dataTable.Rows.IndexOf(row);
+            // IMusteri nesnesinin indexini bul
+            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+
+            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
+                return; // Geçersiz index kontrolü
 
             for (int i = 0; i < dataGrid.Columns.Count; i++)
             {
@@ -693,10 +682,15 @@ namespace WPF_LoginForm.View
             }
         }
 
+
         //AKTARILAN HÜCRELERİ BOYAMA
-        private void HighlightInvalidCells(DataRow row, Color color)
+        private void HighlightInvalidCells(IMusteri musteri, Color color)
         {
-            int rowIndex = dataTable.Rows.IndexOf(row);
+            // IMusteri nesnesinin indexini bul
+            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+
+            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
+                return; // Geçersiz index kontrolü
 
             for (int i = 0; i < dataGrid.Columns.Count; i++)
             {
@@ -706,15 +700,20 @@ namespace WPF_LoginForm.View
                     var dataGridCell = GetDataGridCell(cell);
                     if (dataGridCell != null)
                     {
-                        dataGridCell.Background = new SolidColorBrush(color);
+                        dataGridCell.Background = new SolidColorBrush(color); // Geçersiz hücre arka plan rengi
                     }
                 }
             }
         }
 
-        private void HighlightSuccessfulCells(DataRow row, Color color)
+
+        private void HighlightSuccessfulCells(IMusteri musteri, System.Windows.Media.Color color)
         {
-            int rowIndex = dataTable.Rows.IndexOf(row);
+            // IMusteri nesnesinin indexini bul
+            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+
+            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
+                return; // Geçersiz index kontrolü
 
             for (int i = 0; i < dataGrid.Columns.Count; i++)
             {
@@ -724,12 +723,11 @@ namespace WPF_LoginForm.View
                     var dataGridCell = GetDataGridCell(cell);
                     if (dataGridCell != null)
                     {
-                        dataGridCell.Background = new SolidColorBrush(color);
+                        dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
                     }
                 }
             }
         }
-
         private void AppendErrorMessage(string message, string MusteriKodu)
         {
             string fullMessage = $"MusteriKodu: {MusteriKodu} - {message}";
@@ -792,31 +790,24 @@ namespace WPF_LoginForm.View
             }
         }
 
-        private void CheckInvalidCharactersInExcel()
+        private List<IMusteri> GetCheckedRowsFromMusteriList(List<IMusteri> musteriList)
         {
-            if (dataTable == null) return;
+            if (musteriList == null || !musteriList.Any())
+                return new List<IMusteri>(); // Eğer liste boşsa, boş liste döndür
 
-            foreach (DataRow row in dataTable.Rows)
+            var seçiliSatırlar = new List<IMusteri>(); // Seçili müşteri listesini oluştur
+
+            foreach (var musteri in musteriList)
             {
-                foreach (DataColumn col in dataTable.Columns)
+                // Müşteri nesnesinin secim özelliğine doğrudan erişim
+                if (musteri.Secim) // secim özelliği true ise
                 {
-                    if (row[col] != null && row[col] != DBNull.Value)
-                    {
-                        string cellValue = row[col].ToString();
-                        bool containsInvalidChars = ContainsInvalidXmlChars(cellValue);
-
-                        if (containsInvalidChars)
-                        {
-                            Console.WriteLine($"Geçersiz karakter içeren hücre: [{col.ColumnName}] - {cellValue}");
-                        }
-                    }
+                    seçiliSatırlar.Add(musteri); // Seçili müşteri listesine ekle
                 }
             }
+
+            return seçiliSatırlar; // Seçili müşterileri döndür
         }
-
-
-
-
         private bool ContainsInvalidXmlChars(string text)
         {
             if (string.IsNullOrEmpty(text)) return false;
@@ -825,13 +816,20 @@ namespace WPF_LoginForm.View
             return Regex.IsMatch(text, pattern);
         }
 
-        private bool CheckRequiredColumns(DataTable dt)
+        private bool CheckRequiredColumns(List<IMusteri> musteriList)
         {
             List<string> missingColumns = new List<string>();
 
             foreach (RequiredColumns col in Enum.GetValues(typeof(RequiredColumns)))
             {
-                if (!dt.Columns.Contains(col.ToString()))
+                // Check if any item in the list has the property corresponding to the required column
+                bool hasColumn = musteriList.Any(musteri =>
+                {
+                    var propertyInfo = musteri.GetType().GetProperty(col.ToString());
+                    return propertyInfo != null && propertyInfo.GetValue(musteri) != null;
+                });
+
+                if (!hasColumn)
                 {
                     missingColumns.Add(col.ToString());
                 }
@@ -839,52 +837,47 @@ namespace WPF_LoginForm.View
 
             if (missingColumns.Count > 0)
             {
-                // Mevcut sütunlar eksik olduğunda gösterilecek mesaj
+                // Message to show when required columns are missing
                 string errorMessage = "Gerekli sütunlar eksik: " + string.Join(", ", missingColumns);
                 // MessageBox.Show(errorMessage, "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
 
-                // Bildirim mesajı oluşturuluyor
+                // Create notification message
                 var notificationMessage = new Tasarim1.BildirimMesaji(errorMessage);
                 notificationMessage.Show();
 
                 return false;
-
             }
 
             return true;
         }
-
-        private Tasarim1.CustomerIntegration MapRowToCustomer(DataRow row)
+        private Tasarim1.CustomerIntegration MapMusteriToCustomer(IMusteri musteri)
         {
-            var vergiTip = ReplaceTurkishCharacters(RemoveAllSpaces(row["VergiTipi"].ToString()));
-            Enum.TryParse(row["OdemeTipi"].ToString(), true, out OdemeTipiEnum odemeTipi);
             var returned = new Tasarim1.CustomerIntegration
             {
-                Durum = Enum.TryParse(row["Durum"].ToString(), true, out DurumEnum durum) ? (int?)durum : (int?)null,
-                ErpKod2 = row["MusteriKodu"].ToString(),
-                Unvan = row["Unvan"].ToString(),
-                IlgiliKisi = row["IlgiliKisi"].ToString(),
-                Adres1 = row["Adres"].ToString().Replace("-", string.Empty),
-                MerkezIlTextKod = row["Sehir"].ToString(),
-                Ilce = row["Ilce"].ToString(),
-                TCKimlikNo = row["TcNo"].ToString(),
-                CepTelNo = row["Telefon"].ToString(),
-                VD = row["VergiDairesi"].ToString(),
-                VN = row["VergiNumarasi"].ToString(),
-                MusteriGrupTextKod = row["MusteriGrubu"].ToString(),
-                MusteriEkGrupTextKod = row["MusteriEkGrubu"].ToString(),
-                OdemeTipi = Enum.TryParse(row["OdemeTipi"].ToString(), true, out OdemeTipiEnum odemeTipiEnum) ? (int?)odemeTipiEnum : (int?)null,
-                KisaAd = row["KisaAdi"].ToString(),
-                KdvMuaf = Enum.TryParse(vergiTip, true, out VergiTipiEnum vergiTipiEnum) ? (int?)vergiTipiEnum : (int?)null,
-                KoordinatX = (row["KoordinatX"] != DBNull.Value && row["KoordinatX"].ToString() != "") ? Convert.ToDecimal(row["KoordinatX"]) : (decimal?)null,
-                KoordinatY = (row["KoordinatY"] != DBNull.Value && row["KoordinatY"].ToString() != "") ? Convert.ToDecimal(row["KoordinatY"]) : (decimal?)null,
-                VadeGun = row["VadeGunu"] != DBNull.Value ? Convert.ToInt32(row["VadeGunu"]) : (int?)null,
-                IskontoOran = row["Iskonto"] != DBNull.Value ? Convert.ToDecimal(row["Iskonto"]) : (decimal?)null
+                Durum = (musteri.Durum != null && Enum.TryParse(musteri.Durum.ToString(), true, out DurumEnum durum)) ? (int?)durum : (int?)null,
+                ErpKod2 = musteri.MusteriKodu,
+                Unvan = musteri.Unvan,
+                IlgiliKisi = musteri.IlgiliKisi,
+                Adres1 = musteri.Adres.Replace("-", string.Empty),
+                MerkezIlTextKod = musteri.Sehir,
+                Ilce = musteri.Ilce,
+                TCKimlikNo = musteri.TcNo,
+                CepTelNo = musteri.Telefon,
+                VD = musteri.VergiDairesi,
+                VN = musteri.VergiNumarasi,
+                MusteriGrupTextKod = musteri.MusteriGrubu,
+                MusteriEkGrupTextKod = musteri.MusteriEkGrubu,
+                OdemeTipi = (musteri.OdemeTipi != null && Enum.TryParse(musteri.OdemeTipi.ToString(), true, out OdemeTipiEnum odemeTipiEnum)) ? (int?)odemeTipiEnum : (int?)null,
+                KisaAd = musteri.KisaAdi,
+                KdvMuaf = (musteri.VergiTipi != null && Enum.TryParse(musteri.VergiTipi.ToString(), true, out VergiTipiEnum vergiTipiEnum)) ? (int?)vergiTipiEnum : (int?)null,
+                KoordinatX = (musteri.KoordinatX != null) ? Convert.ToDecimal(musteri.KoordinatX) : (decimal?)null,
+                KoordinatY = (musteri.KoordinatY != null) ? Convert.ToDecimal(musteri.KoordinatY) : (decimal?)null,
+                VadeGun = (musteri.VadeGunu != null) ? Convert.ToInt32(musteri.VadeGunu) : (int?)null,
+                IskontoOran = (musteri.Iskonto != null) ? Convert.ToDecimal(musteri.Iskonto) : (decimal?)null
             };
+
             return returned;
         }
-
-
 
         private string ConvertCustomersToXML(List<Tasarim1.CustomerIntegration> customers, string UserName, string panServisSifresi, string firmaKodu, string calismaYili, string dist)
         {
@@ -958,8 +951,9 @@ namespace WPF_LoginForm.View
                                 {
                                     stringValue = ((int?)value).GetValueOrDefault().ToString();
                                 }
-
-                                xmlWriter.WriteElementString(prop.Name, stringValue);
+                                
+                                    xmlWriter.WriteElementString(prop.Name, stringValue);
+                                
                             }
                         }
 

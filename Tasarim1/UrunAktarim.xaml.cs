@@ -24,6 +24,7 @@ using WPF_LoginForm;
 using Tasarim1;
 using System.Reflection;
 using System.Windows.Controls.Primitives;
+using ClosedXML.Excel;
 
 
 namespace ExcelToPanorama
@@ -94,140 +95,91 @@ namespace ExcelToPanorama
             // Tüm boşlukları kaldırır
             return input.Replace(" ", string.Empty);
         }
-        private void btnExcelYükle_Click(object sender, RoutedEventArgs e)
+        private List<IMusteri> musteriList = new List<IMusteri>();
+        public List<IMusteri> ReadExcelFile(string filePath)
         {
-            var openFileDialog = new OpenFileDialog
+            try
             {
-                Filter = "Excel Dosyaları|*.xls;*.xlsx;*.xlsm"
+                musteriList.Clear();
+                using (var workbook = new XLWorkbook(filePath))
+                {
+                    var worksheet = workbook.Worksheet(1); // İlk sayfayı seç
+                    var rows = worksheet.RowsUsed().Skip(1); // İlk satırı başlık olarak say
+                    var headers = worksheet.Row(1).Cells().Select(c => c.GetString()).ToList();
+                    var columnIndices = headers.Select((header, index) => new { header, index }).ToDictionary(x => x.header, x => x.index + 1);
+
+                    foreach (var row in rows)
+                    {
+                        var musteri = new Musteri
+                        {
+                            Durum = row.Cell(columnIndices.ContainsKey("Durum") ? columnIndices["Durum"] : 1).GetString(),
+                            MusteriKodu = row.Cell(columnIndices.ContainsKey("MusteriKodu") ? columnIndices["MusteriKodu"] : 2).GetString(),
+                            Unvan = row.Cell(columnIndices.ContainsKey("Unvan") ? columnIndices["Unvan"] : 3).GetString(),
+                            IlgiliKisi = row.Cell(columnIndices.ContainsKey("IlgiliKisi") ? columnIndices["IlgiliKisi"] : 4).GetString(),
+                            Adres = row.Cell(columnIndices.ContainsKey("Adres") ? columnIndices["Adres"] : 5).GetString(),
+                            Sehir = row.Cell(columnIndices.ContainsKey("Şehir") ? columnIndices["Şehir"] : 6).GetString(),
+                            Ilce = row.Cell(columnIndices.ContainsKey("İlçe") ? columnIndices["İlçe"] : 7).GetString(),
+                            TcNo = row.Cell(columnIndices.ContainsKey("Tc No") ? columnIndices["Tc No"] : 8).GetString(),
+                            Telefon = row.Cell(columnIndices.ContainsKey("Telefon") ? columnIndices["Telefon"] : 9).GetString(),
+                            VergiDairesi = row.Cell(columnIndices.ContainsKey("Vergi Dairesi") ? columnIndices["Vergi Dairesi"] : 10).GetString(),
+                            VergiNumarasi = row.Cell(columnIndices.ContainsKey("Vergi Numarası") ? columnIndices["Vergi Numarası"] : 11).GetString(),
+                            MusteriGrubu = row.Cell(columnIndices.ContainsKey("MusteriGrubu") ? columnIndices["MusteriGrubu"] : 12).GetString(),
+                            MusteriEkGrubu = row.Cell(columnIndices.ContainsKey("MusteriEkGrubu") ? columnIndices["MusteriEkGrubu"] : 13).GetString(),
+                            OdemeTipi = row.Cell(columnIndices.ContainsKey("OdemeTipi") ? columnIndices["OdemeTipi"] : 14).GetString(),
+                            KisaAdi = row.Cell(columnIndices.ContainsKey("KisaAdi") ? columnIndices["KisaAdi"] : 15).GetString(),
+                            VergiTipi = row.Cell(columnIndices.ContainsKey("VergiTipi") ? columnIndices["VergiTipi"] : 16).GetString(),
+                            KoordinatX = row.Cell(columnIndices.ContainsKey("Koordinat X") ? columnIndices["Koordinat X"] : 17).GetString(),
+                            KoordinatY = row.Cell(columnIndices.ContainsKey("Koordinat Y") ? columnIndices["Koordinat Y"] : 18).GetString(),
+                            VadeGunu = row.Cell(columnIndices.ContainsKey("VADE GÜNÜ") ? columnIndices["VADE GÜNÜ"] : 19).GetString(),
+                            Iskonto = row.Cell(columnIndices.ContainsKey("İSKONTO") ? columnIndices["İSKONTO"] : 20).GetString()
+
+
+                        };
+                        musteriList.Add(musteri); // Listeye ekleme
+                    }
+                    //_ = musteriList;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Bir hata oluştu: {ex.Message}");
+            }
+
+            return musteriList;
+        }
+        public List<IMusteri> GetMusteriList()
+        {
+            return musteriList; // Global listeyi döndürme
+        }
+        public void MusteriAL(List<IMusteri> GuncellenmisMustList)
+        {
+            musteriList = GuncellenmisMustList;
+            dataGrid.ItemsSource = musteriList;
+            dataGrid.Items.Refresh(); // DataGrid'i yenile
+
+            //return musteriList; // Global listeyi döndürme
+        }
+        private async void btnExcelYükle_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Excel Dosyaları|*.xls;*.xlsx;*.xlsm",
+                Title = "Excel Dosyası Seçin"
             };
 
-            if (openFileDialog.ShowDialog() == true)
+            bool? result = openFileDialog.ShowDialog();
+
+            if (result == true)
             {
-                string dosyaAdı = openFileDialog.FileName;
-
-                // Bekleme ekranını oluştur ve göster (en başta)
-                var beklemeEkrani = new BeklemeEkrani();
-                beklemeEkrani.Topmost = true;
-                beklemeEkrani.Show();
-                Task.Delay(3000);
-
-                Excel.Application excelUygulama = null;
-                Excel.Workbook çalışmaKitabı = null;
-                Excel.Worksheet çalışmaSayfası = null;
-
-                try
+                string filePath = openFileDialog.FileName;
+                List<IMusteri> musteri = ReadExcelFile(filePath);
+                if (musteri != null && musteri.Any())
                 {
-                    // Text dosyasından verileri oku
-                    var kolonIsterlerData = File.ReadAllLines("KolonIsterlerDataUrun.txt")
-                        .Select(line => line.Split('='))
-                        .ToDictionary(parts => parts[0], parts => parts.Length > 1 ? parts[1] : string.Empty);
-
-                    excelUygulama = new Excel.Application();
-                    çalışmaKitabı = excelUygulama.Workbooks.Open(dosyaAdı);
-                    çalışmaSayfası = çalışmaKitabı.Worksheets[1];
-
-                    dataTable?.Clear();
-                    dataTable = new DataTable();
-
-                    int sütunSayısı = çalışmaSayfası.UsedRange.Columns.Count;
-                    int satırSayısı = çalışmaSayfası.UsedRange.Rows.Count;
-
-                    // Sütun isimlerini tek seferde al
-                    var sütunAdları = new string[sütunSayısı];
-                    for (int sütun = 1; sütun <= sütunSayısı; sütun++)
-                    {
-                        Excel.Range başlıkHücresi = çalışmaSayfası.Cells[1, sütun];
-                        string sütunAdı = başlıkHücresi.Value2?.ToString().Replace(" ", "") ?? "";
-                        sütunAdı = ReplaceTurkishCharacters(sütunAdı);
-                        sütunAdları[sütun - 1] = sütunAdı;
-                        dataTable.Columns.Add(sütunAdı);
-                    }
-
-                    // Satırları ve hücreleri işleyerek dataTable'ı doldur
-                    object[,] hücreVerileri = çalışmaSayfası.UsedRange.Value2;
-                    for (int satır = 2; satır <= satırSayısı; satır++)
-                    {
-                        DataRow yeniSatır = dataTable.NewRow();
-                        for (int sütun = 1; sütun <= sütunSayısı; sütun++)
-                        {
-                            string hücreVerisi = hücreVerileri[satır, sütun]?.ToString() ?? "";
-
-                            if (sütunAdları[sütun - 1] == "Adres")
-                            {
-                                hücreVerisi = hücreVerisi.Replace("-", "").Replace(".", "");
-                                hücreVerisi = NormalizeSpaces(hücreVerisi);
-                            }
-                            else if (sütunAdları[sütun - 1] == "OdemeTipi")
-                            {
-                                hücreVerisi = RemoveAllSpaces(hücreVerisi);
-                            }
-                            else if (sütunAdları[sütun - 1] == "KisaAdi" && hücreVerisi.Length > 30)
-                            {
-                                hücreVerisi = hücreVerisi.Substring(0, 30);
-                                hücreVerileri[satır, sütun] = hücreVerisi; // Değişikliği Excel'e kaydet
-                            }
-
-                            yeniSatır[sütun - 1] = hücreVerisi;
-                        }
-                        dataTable.Rows.Add(yeniSatır);
-                    }
-
-                    // Boş hücreleri doldur
-                    foreach (DataRow row in dataTable.Rows)
-                    {
-                        foreach (DataColumn column in dataTable.Columns)
-                        {
-                            if (string.IsNullOrWhiteSpace(row[column].ToString()) && kolonIsterlerData.TryGetValue(column.ColumnName, out var value))
-                            {
-                                row[column] = value;
-                            }
-                        }
-                    }
-
-                    çalışmaKitabı.Save();
-                    dataGrid.ItemsSource = dataTable.DefaultView;
-                    dataGrid.Items.Refresh();
-                    foreach (var column in dataGrid.Columns)
-                    {
-                        if (new[] { "UrunKodu", "UrunAdi", "UrunGrupKodu", "UrunEkGrupKodu", "SeviyeliGrup1", "UreticiKodu", "Birim1", "SatisKDVOrani", "ALISKDVORANI" }
-                            .Contains(column.Header.ToString()))
-                        {
-                            var headerStyle = new Style(typeof(DataGridColumnHeader));
-                            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.Red));
-                            column.HeaderStyle = headerStyle;
-                        }
-                    }
-
-                    var mesaj1 = new Tasarim1.BildirimMesaji("Excel Dosyası Başarıyla Yüklendi!");
-                    mesaj1.Show();
+                    this.MusteriAL(musteri);
                 }
-                catch (Exception ex)
+                else
                 {
-                    var mesaj = new Tasarim1.BildirimMesaji($"Bir hata oluştu: {ex.Message}");
-                    mesaj.Show();
-                }
-                finally
-                {
-                    // Bekleme ekranını kapat
-                    beklemeEkrani.Close();
-
-                    if (çalışmaKitabı != null)
-                    {
-                        çalışmaKitabı.Close(false);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(çalışmaKitabı);
-                    }
-                    if (çalışmaSayfası != null)
-                    {
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(çalışmaSayfası);
-                    }
-                    if (excelUygulama != null)
-                    {
-                        excelUygulama.Quit();
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(excelUygulama);
-                    }
-
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
+                    MessageBox.Show("Veri yüklenemedi.");
                 }
             }
         }
