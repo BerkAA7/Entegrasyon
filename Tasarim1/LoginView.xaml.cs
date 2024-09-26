@@ -31,7 +31,7 @@ namespace WPF_LoginForm.View
 
         private CancellationTokenSource cancellationTokenSource;
 
-        private DataTable dataTable;
+        //private DataTable dataTable;
         public static LoginView CurrentInstance { get; private set; }
 
 
@@ -707,24 +707,51 @@ namespace WPF_LoginForm.View
         }
 
 
+        //private void HighlightSuccessfulCells(IMusteri musteri, System.Windows.Media.Color color)
+        //{
+        //    // IMusteri nesnesinin indexini bul
+        //    int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+
+        //    if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
+        //        return; // Geçersiz index kontrolü
+
+        //    for (int i = 0; i < dataGrid.Columns.Count; i++)
+        //    {
+        //        var cell = dataGrid.Columns[i].GetCellContent(dataGrid.Items[rowIndex]);
+        //        if (cell != null)
+        //        {
+        //            var dataGridCell = GetDataGridCell(cell);
+        //            if (dataGridCell != null)
+        //            {
+        //                dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
+        //            }
+        //        }
+        //    }
+        //}
         private void HighlightSuccessfulCells(IMusteri musteri, System.Windows.Media.Color color)
         {
-            // IMusteri nesnesinin indexini bul
-            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
-
-            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
-                return; // Geçersiz index kontrolü
-
-            for (int i = 0; i < dataGrid.Columns.Count; i++)
+            // IMusteri nesnesini dataGrid'deki öğelerle eşleştir
+            foreach (var item in dataGrid.Items)
             {
-                var cell = dataGrid.Columns[i].GetCellContent(dataGrid.Items[rowIndex]);
-                if (cell != null)
+                if (item == musteri)
                 {
-                    var dataGridCell = GetDataGridCell(cell);
-                    if (dataGridCell != null)
+                    var row = dataGrid.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                    if (row != null)
                     {
-                        dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
+                        for (int i = 0; i < dataGrid.Columns.Count; i++)
+                        {
+                            var cell = dataGrid.Columns[i].GetCellContent(row);
+                            if (cell != null)
+                            {
+                                var dataGridCell = GetDataGridCell(cell);
+                                if (dataGridCell != null)
+                                {
+                                    dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
+                                }
+                            }
+                        }
                     }
+                    break;
                 }
             }
         }
@@ -859,6 +886,7 @@ namespace WPF_LoginForm.View
                 Unvan = musteri.Unvan,
                 IlgiliKisi = musteri.IlgiliKisi,
                 Adres1 = musteri.Adres.Replace("-", string.Empty),
+                Adres2 = "",
                 MerkezIlTextKod = musteri.Sehir,
                 Ilce = musteri.Ilce,
                 TCKimlikNo = musteri.TcNo,
@@ -875,8 +903,14 @@ namespace WPF_LoginForm.View
                 VadeGun = (musteri.VadeGunu != null) ? Convert.ToInt32(musteri.VadeGunu) : (int?)null,
                 IskontoOran = (musteri.Iskonto != null) ? Convert.ToDecimal(musteri.Iskonto) : (decimal?)null
             };
-
+            if (!string.IsNullOrWhiteSpace(returned.Adres1) && returned.Adres1.Length > 45)
+            {
+                // Adres1'in ilk 45 karakteri
+                returned.Adres2 = returned.Adres1.Substring(45); // 45. karakterden itibaren geri kalanlar Adres2
+                returned.Adres1 = returned.Adres1.Substring(0, 45); // İlk 45 karakter Adres1
+            }
             return returned;
+           
         }
 
         private string ConvertCustomersToXML(List<Tasarim1.CustomerIntegration> customers, string UserName, string panServisSifresi, string firmaKodu, string calismaYili, string dist)

@@ -30,6 +30,5 @@ namespace ExcelToPanorama
         string KoordinatY { get; set; }
         string VadeGunu { get; set; }
         string Iskonto { get; set; }
-
     }
 }

@@ -34,7 +34,7 @@ namespace ExcelToPanorama
     {
 
 
-        private DataTable dataTable;
+        //private DataTable dataTable;
         public UrunAktarim()
         {
             InitializeComponent();

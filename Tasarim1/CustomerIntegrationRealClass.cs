@@ -18,6 +18,7 @@ namespace Tasarim1
             public string Unvan { get; set; }
             public string IlgiliKisi { get; set; }
             public string Adres1 { get; set; }
+            public string Adres2 { get; set; }
             public string MerkezIlTextKod { get; set; }
             public string Ilce { get; set; }
             public string TCKimlikNo { get; set; }
