@@ -541,14 +541,14 @@ namespace WPF_LoginForm.View
                         }
 
                         // Tüm müşteri bilgileri boş mu kontrol et
-                        if (string.IsNullOrEmpty(musteri.Durum) &&
-    string.IsNullOrEmpty(musteri.MusteriKodu) &&
-    string.IsNullOrEmpty(musteri.Unvan) &&
-    string.IsNullOrEmpty(musteri.IlgiliKisi) &&
-    string.IsNullOrEmpty(musteri.MusteriGrubu) &&
-    string.IsNullOrEmpty(musteri.MusteriEkGrubu) &&
-    string.IsNullOrEmpty(musteri.OdemeTipi) &&
-    string.IsNullOrEmpty(musteri.KisaAdi) &&
+                        if (string.IsNullOrEmpty(musteri.Durum) ||
+    string.IsNullOrEmpty(musteri.MusteriKodu) ||
+    string.IsNullOrEmpty(musteri.Unvan) ||
+    string.IsNullOrEmpty(musteri.IlgiliKisi) ||
+    string.IsNullOrEmpty(musteri.MusteriGrubu) ||
+    string.IsNullOrEmpty(musteri.MusteriEkGrubu) ||
+    string.IsNullOrEmpty(musteri.OdemeTipi) ||
+    string.IsNullOrEmpty(musteri.KisaAdi) ||
     string.IsNullOrEmpty(musteri.VergiTipi))
                         {
                             var mesaj = new Tasarim1.BildirimMesaji("Seçili satırda gerekli hücreler boş. Veri aktarımı durduruluyor.");
