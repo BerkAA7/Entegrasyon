@@ -8,6 +8,7 @@ namespace ExcelToPanorama.Class
 {
     public class Urun : IUrun
     {
+        public bool Secim {  get; set; }
         public string UrunKodu { get; set; }
         public string UrunAdi { get; set; }
         public string UrunKisaAdi { get; set; }
@@ -19,13 +20,13 @@ namespace ExcelToPanorama.Class
         public string Barkod1 { get; set; }
         public string Birim2 { get; set; }
         public string Barkod2 { get; set; }
-        public decimal? BirimCarpani2 { get; set; }
+        public string BirimCarpani2 { get; set; }
         public string Birim3 { get; set; }
         public string Barkod3 { get; set; }
-        public decimal? BirimCarpani3 { get; set; }
-        public decimal? SatisKDVOrani { get; set; }
+        public string BirimCarpani3 { get; set; }
+        public string SatisKDVOrani { get; set; }
         public string UrunTip { get; set; }
-        public decimal? AlisKDVOrani { get; set; }
+        public string AlisKDVOrani { get; set; }
         public string UrunAciklama { get; set; }
     }
 

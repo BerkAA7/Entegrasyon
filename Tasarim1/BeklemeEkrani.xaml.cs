@@ -25,10 +25,10 @@ namespace Tasarim1
             InitializeComponent();
             
         }
-        private void RootGrid_Loaded(object sender, RoutedEventArgs e)
-        {
-            var storyboard = (Storyboard)FindResource("RotateStoryboard");
-            storyboard.Begin(MyEllipse, true); // MyEllipse ile animasyonu başlatıyoruz
-        }
+        //private void RootGrid_Loaded(object sender, RoutedEventArgs e)
+        //{
+        //    var storyboard = (Storyboard)FindResource("RotateStoryboard");
+        //    storyboard.Begin(MyEllipse, true); // MyEllipse ile animasyonu başlatıyoruz
+        //}
     }
 }

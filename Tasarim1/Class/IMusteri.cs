@@ -7,7 +7,11 @@ using System.Windows.Documents;
 
 namespace ExcelToPanorama
 {
-    public interface IMusteri
+    public interface ISelectable
+    {
+        bool Secim { get; set; }
+    }
+    public interface IMusteri : ISelectable
     {
         bool Secim {  get; set; }
         string Durum { get; set; }

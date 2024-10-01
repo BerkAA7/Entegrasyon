@@ -21,11 +21,14 @@ using System.Reflection;
 using ExcelToPanorama;
 using ExcelToPanorama.Interface;
 using ClosedXML.Excel;
+using Tasarim1;
+using DocumentFormat.OpenXml.Office2010.ExcelAc;
+using ExcelToPanorama.Class;
 
 
 namespace WPF_LoginForm.View
 {
-
+    
     public partial class LoginView : Window, ILoginView
     {
 
@@ -82,20 +85,7 @@ namespace WPF_LoginForm.View
         }
 
         // Helper method to get DataGridCell from DataGrid and DataRowView
-        private DataGridCell GetDataGridCell(DataGrid dataGrid, DataRowView row)
-        {
-            var container = dataGrid.ItemContainerGenerator.ContainerFromItem(row) as DataGridRow;
-            if (container != null)
-            {
-                var column = dataGrid.Columns.FirstOrDefault(c => c.Header.ToString() == "Seç");
-                if (column != null)
-                {
-                    var cellContent = column.GetCellContent(container);
-                    return GetDataGridCell(cellContent);
-                }
-            }
-            return null;
-        }
+       
 
         // Helper method to get VisualChild of a given type
         private T GetVisualChild<T>(DependencyObject parent) where T : DependencyObject
@@ -127,17 +117,30 @@ namespace WPF_LoginForm.View
         }
 
         // Helper method to get DataGridCell from cell content
-        private DataGridCell GetDataGridCell(FrameworkElement cellContent)
+        #region GetDataGridCells
+        private static DataGridCell GetDataGridCell(FrameworkElement element)
         {
-            var parent = VisualTreeHelper.GetParent(cellContent);
-
-            while (parent != null && !(parent is DataGridCell))
+            while (element != null && !(element is DataGridCell))
             {
-                parent = VisualTreeHelper.GetParent(parent);
+                element = VisualTreeHelper.GetParent(element) as FrameworkElement;
             }
-
-            return parent as DataGridCell;
+            return element as DataGridCell;
         }
+        private DataGridCell GetDataGridCell(DataGrid dataGrid, DataRowView row)
+        {
+            var container = dataGrid.ItemContainerGenerator.ContainerFromItem(row) as DataGridRow;
+            if (container != null)
+            {
+                var column = dataGrid.Columns.FirstOrDefault(c => c.Header.ToString() == "Seç");
+                if (column != null)
+                {
+                    var cellContent = column.GetCellContent(container);
+                    return GetDataGridCell(cellContent);
+                }
+            }
+            return null;
+        }
+        #endregion
 
         private void btnKolonSabitleriniDegistir_Click(object sender, RoutedEventArgs e)
         {
@@ -216,6 +219,7 @@ namespace WPF_LoginForm.View
             this.Close();
         }
         private List<IMusteri> musteriList = new List<IMusteri>();
+
         public List<IMusteri> ReadExcelFile(string filePath)
         {
             try
@@ -232,32 +236,30 @@ namespace WPF_LoginForm.View
                     {
                         var musteri = new Musteri
                         {
-                            Durum = row.Cell(columnIndices.ContainsKey("Durum") ? columnIndices["Durum"] : 1).GetString(),
-                            MusteriKodu = row.Cell(columnIndices.ContainsKey("MusteriKodu") ? columnIndices["MusteriKodu"] : 2).GetString(),
-                            Unvan = row.Cell(columnIndices.ContainsKey("Unvan") ? columnIndices["Unvan"] : 3).GetString(),
-                            IlgiliKisi = row.Cell(columnIndices.ContainsKey("IlgiliKisi") ? columnIndices["IlgiliKisi"] : 4).GetString(),
-                            Adres = row.Cell(columnIndices.ContainsKey("Adres") ? columnIndices["Adres"] : 5).GetString(),
-                            Sehir = row.Cell(columnIndices.ContainsKey("Şehir") ? columnIndices["Şehir"] : 6).GetString(),
-                            Ilce = row.Cell(columnIndices.ContainsKey("İlçe") ? columnIndices["İlçe"] : 7).GetString(),
-                            TcNo = row.Cell(columnIndices.ContainsKey("Tc No") ? columnIndices["Tc No"] : 8).GetString(),
-                            Telefon = row.Cell(columnIndices.ContainsKey("Telefon") ? columnIndices["Telefon"] : 9).GetString(),
-                            VergiDairesi = row.Cell(columnIndices.ContainsKey("Vergi Dairesi") ? columnIndices["Vergi Dairesi"] : 10).GetString(),
-                            VergiNumarasi = row.Cell(columnIndices.ContainsKey("Vergi Numarası") ? columnIndices["Vergi Numarası"] : 11).GetString(),
-                            MusteriGrubu = row.Cell(columnIndices.ContainsKey("MusteriGrubu") ? columnIndices["MusteriGrubu"] : 12).GetString(),
-                            MusteriEkGrubu = row.Cell(columnIndices.ContainsKey("MusteriEkGrubu") ? columnIndices["MusteriEkGrubu"] : 13).GetString(),
-                            OdemeTipi = row.Cell(columnIndices.ContainsKey("OdemeTipi") ? columnIndices["OdemeTipi"] : 14).GetString(),
-                            KisaAdi = row.Cell(columnIndices.ContainsKey("KisaAdi") ? columnIndices["KisaAdi"] : 15).GetString(),
-                            VergiTipi = row.Cell(columnIndices.ContainsKey("VergiTipi") ? columnIndices["VergiTipi"] : 16).GetString(),
-                            KoordinatX = row.Cell(columnIndices.ContainsKey("Koordinat X") ? columnIndices["Koordinat X"] : 17).GetString(),
-                            KoordinatY = row.Cell(columnIndices.ContainsKey("Koordinat Y") ? columnIndices["Koordinat Y"] : 18).GetString(),
-                            VadeGunu = row.Cell(columnIndices.ContainsKey("VADE GÜNÜ") ? columnIndices["VADE GÜNÜ"] : 19).GetString(),
-                            Iskonto = row.Cell(columnIndices.ContainsKey("İSKONTO") ? columnIndices["İSKONTO"] : 20).GetString()
-
-
+                            Durum = GetCellValue(row, columnIndices, "Durum", 1),
+                            MusteriKodu = GetCellValue(row, columnIndices, "MusteriKodu", 2),
+                            Unvan = GetCellValue(row, columnIndices, "Unvan", 3),
+                            IlgiliKisi = GetCellValue(row, columnIndices, "IlgiliKisi", 4),
+                            Adres = GetCellValue(row, columnIndices, "Adres", 5),
+                            Sehir = GetCellValue(row, columnIndices, "Şehir", 6),
+                            Ilce = GetCellValue(row, columnIndices, "İlçe", 7),
+                            TcNo = GetCellValue(row, columnIndices, "Tc No", 8),
+                            Telefon = GetCellValue(row, columnIndices, "Telefon", 9),
+                            VergiDairesi = GetCellValue(row, columnIndices, "Vergi Dairesi", 10),
+                            VergiNumarasi = GetCellValue(row, columnIndices, "Vergi Numarası", 11),
+                            MusteriGrubu = GetCellValue(row, columnIndices, "MusteriGrubu", 12),
+                            MusteriEkGrubu = GetCellValue(row, columnIndices, "MusteriEkGrubu", 13),
+                            OdemeTipi = GetCellValue(row, columnIndices, "OdemeTipi", 14),
+                            KisaAdi = GetCellValue(row, columnIndices, "KisaAdi", 15),
+                            VergiTipi = GetCellValue(row, columnIndices, "VergiTipi", 16),
+                            KoordinatX = GetCellValue(row, columnIndices, "Koordinat X", 17),
+                            KoordinatY = GetCellValue(row, columnIndices, "Koordinat Y", 18),
+                            VadeGunu = GetCellValue(row, columnIndices, "VADE GÜNÜ", 19),
+                            Iskonto = GetCellValue(row, columnIndices, "İSKONTO", 20)
                         };
+
                         musteriList.Add(musteri); // Listeye ekleme
                     }
-                    //_ = musteriList;
                 }
             }
             catch (Exception ex)
@@ -490,6 +492,42 @@ namespace WPF_LoginForm.View
 
         private async void btnBilgileriAktar_Click(object sender, RoutedEventArgs e)
         {
+            btnLogin.IsEnabled = false;
+            BeklemeEkrani beklemeEkrani = new BeklemeEkrani
+            {
+                Owner = Window.GetWindow(this), // Ana pencereyi owner olarak ayarla
+                WindowStartupLocation = WindowStartupLocation.CenterOwner // Ortalanmış açılması için
+            };
+
+            // Yükleniyor ekranını göster
+            beklemeEkrani.Show();
+
+            // Ana pencereyi devre dışı bırak
+            this.IsEnabled = false;
+
+            // Butonu disable yap
+            btnLogin.IsEnabled = false;
+
+            try
+            {
+                // Uzun süren işleminiz burada çalışıyor
+                await BilgileriAktarAsync();  // Bu metot uzun işlemleri yapacak
+            }
+            finally
+            {
+                // İşlem tamamlandığında bekleme ekranını kapat
+                beklemeEkrani.Close();
+
+                // Ana pencereyi tekrar aktif yap
+                this.IsEnabled = true;
+
+                // Butonu tekrar aktif yap
+                btnLogin.IsEnabled = true;
+            }
+        }
+
+        private async Task BilgileriAktarAsync()
+        {
             string panServisLinki = txtLink.Text;
             string panServisSifresi = txtSifre.Text;
             string dist = txtDist.Text;
@@ -504,14 +542,13 @@ namespace WPF_LoginForm.View
                 return;
             }
 
-
             cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = cancellationTokenSource.Token;
 
             try
             {
-                List<IMusteri> musteriList = GetMusteriList(); // Müşteri listesini alacak bir metot varsayıyoruz
-                List<IMusteri> rowsToProcess = GetCheckedRowsFromMusteriList(musteriList);
+                List<IMusteri> musteriList = GetMusteriList();
+                List<IMusteri> rowsToProcess = GetCheckedRowsFromList(musteriList);
 
                 if (!rowsToProcess.Any())
                 {
@@ -520,44 +557,33 @@ namespace WPF_LoginForm.View
                     return;
                 }
 
-                rtbErrorMessages.Document.Blocks.Clear(); // Önceki hata mesajlarını temizle
+                rtbErrorMessages.Document.Blocks.Clear();
 
-                if (rowsToProcess.Count == 0)
-                {
-                    var mesaj = new Tasarim1.BildirimMesaji("Lütfen Gönderilecek Satırları Seçin!");
-                    mesaj.Show();
-                    return;
-                }
-
-                rtbErrorMessages.Document.Blocks.Clear(); // Önceki hata mesajlarını temizle
                 foreach (var musteri in rowsToProcess)
                 {
                     try
                     {
-                        // CancellationToken'ın iptal edilip edilmediğini kontrol edin
                         if (cancellationToken.IsCancellationRequested)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                         }
 
-                        // Tüm müşteri bilgileri boş mu kontrol et
                         if (string.IsNullOrEmpty(musteri.Durum) ||
-    string.IsNullOrEmpty(musteri.MusteriKodu) ||
-    string.IsNullOrEmpty(musteri.Unvan) ||
-    string.IsNullOrEmpty(musteri.IlgiliKisi) ||
-    string.IsNullOrEmpty(musteri.MusteriGrubu) ||
-    string.IsNullOrEmpty(musteri.MusteriEkGrubu) ||
-    string.IsNullOrEmpty(musteri.OdemeTipi) ||
-    string.IsNullOrEmpty(musteri.KisaAdi) ||
-    string.IsNullOrEmpty(musteri.VergiTipi))
+                            string.IsNullOrEmpty(musteri.MusteriKodu) ||
+                            string.IsNullOrEmpty(musteri.Unvan) ||
+                            string.IsNullOrEmpty(musteri.IlgiliKisi) ||
+                            string.IsNullOrEmpty(musteri.MusteriGrubu) ||
+                            string.IsNullOrEmpty(musteri.MusteriEkGrubu) ||
+                            string.IsNullOrEmpty(musteri.OdemeTipi) ||
+                            string.IsNullOrEmpty(musteri.KisaAdi) ||
+                            string.IsNullOrEmpty(musteri.VergiTipi))
                         {
                             var mesaj = new Tasarim1.BildirimMesaji("Seçili satırda gerekli hücreler boş. Veri aktarımı durduruluyor.");
                             mesaj.Show();
-                            return; // Veri aktarımını durdur
+                            return;
                         }
 
-                        // Hücrelerin arka plan rengini temizleyin
-                        ClearRowCellBackground(musteri);
+                        ClearRowCellBackground(musteri, musteriList, dataGrid);
 
                         var customers = new List<Tasarim1.CustomerIntegration> { MapMusteriToCustomer(musteri) };
                         string xmlData = ConvertCustomersToXML(customers, UserName, panServisSifresi, firmaKodu, calismaYili, dist);
@@ -574,12 +600,12 @@ namespace WPF_LoginForm.View
 
                         if (!string.IsNullOrEmpty(errorMessage))
                         {
-                            HighlightInvalidCells(musteri, Colors.LightCoral); // Hata durumunda LightCoral rengi
+                            HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
                             AppendErrorMessage($"Hata: {errorMessage}", musteriKodu);
                         }
                         else
                         {
-                            HighlightSuccessfulCells(musteri, Colors.LightGreen); // Başarılı durumunda LightGreen rengi
+                            HighlightSuccessfulCells(musteri, dataGrid, Colors.LightGreen);
                             AppendErrorMessage("Başarılı bir şekilde aktarım gerçekleşti", musteriKodu);
                         }
                     }
@@ -588,7 +614,7 @@ namespace WPF_LoginForm.View
                         string errorResponse = await ex.GetResponseStringAsync();
                         string errorMessage = ParseErrorMessage(errorResponse);
                         string musteriKodu = musteri.MusteriKodu;
-                        HighlightInvalidCells(musteri, Colors.LightCoral);
+                        HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
                         AppendErrorMessage($"Hata: {ex.Message}\nYanıt: {errorMessage}", musteriKodu);
                     }
                     catch (System.Security.SecurityException ex)
@@ -600,12 +626,11 @@ namespace WPF_LoginForm.View
                     catch (Exception ex)
                     {
                         string musteriKodu = musteri.MusteriKodu;
-                        HighlightInvalidCells(musteri, Colors.LightCoral);
+                        HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
                         AppendErrorMessage($"Hata: {ex.Message}", musteriKodu);
                     }
 
-                    // Sunucuyu aşırı yüklememek için bekleme süresi
-                    await Task.Delay(1000); // Gerekirse bekleme süresini ayarlayın
+                    await Task.Delay(1000);
                 }
             }
             catch (OperationCanceledException)
@@ -615,7 +640,6 @@ namespace WPF_LoginForm.View
             }
             catch (Exception ex)
             {
-                // Genel hataları işleme
                 AppendErrorMessage($"İstek gönderilirken bir hata oluştu: {ex.Message}", "");
             }
         }
@@ -632,9 +656,10 @@ namespace WPF_LoginForm.View
             dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
             dataGrid.Items.Refresh(); // DataGrid'i yenile
         }
-        private CheckBox GetCheckBoxForRow(Musteri musteri)
+        /*GENERİC*/
+        private CheckBox GetCheckBoxForRow<T>(List<T> itemList, T item) where T : IMusteri, IUrun
         {
-            int rowIndex = musteriList.IndexOf(musteri);
+            int rowIndex = itemList.IndexOf(item);
 
             if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
                 return null;
@@ -660,10 +685,11 @@ namespace WPF_LoginForm.View
 
             return null;
         }
-        private void ClearRowCellBackground(IMusteri musteri)
+        /*GENERİC*/
+        private void ClearRowCellBackground<T>(T item, List<T> itemList, DataGrid dataGrid)
         {
-            // IMusteri nesnesinin indexini bul
-            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+            // Verilen nesnenin indexini bul
+            int rowIndex = itemList.IndexOf(item); // itemList, List<T> tipinde olmalı
 
             if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
                 return; // Geçersiz index kontrolü
@@ -683,11 +709,12 @@ namespace WPF_LoginForm.View
         }
 
 
+
         //AKTARILAN HÜCRELERİ BOYAMA
-        private void HighlightInvalidCells(IMusteri musteri, Color color)
+/*GENERİC*/private void HighlightInvalidCells<T>(T item, List<T> itemList, DataGrid dataGrid, System.Windows.Media.Color color)
         {
-            // IMusteri nesnesinin indexini bul
-            int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
+            // Verilen nesnenin indexini bul
+            int rowIndex = itemList.IndexOf(item); // itemList, List<T> tipinde olmalı
 
             if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
                 return; // Geçersiz index kontrolü
@@ -728,14 +755,14 @@ namespace WPF_LoginForm.View
         //        }
         //    }
         //}
-        private void HighlightSuccessfulCells(IMusteri musteri, System.Windows.Media.Color color)
+  /*GENERİC*/ public static void HighlightSuccessfulCells<T>(T item, DataGrid dataGrid, System.Windows.Media.Color color)
         {
-            // IMusteri nesnesini dataGrid'deki öğelerle eşleştir
-            foreach (var item in dataGrid.Items)
+            // T türündeki nesneyi dataGrid'deki öğelerle eşleştir
+            foreach (var gridItem in dataGrid.Items)
             {
-                if (item == musteri)
+                if (gridItem.Equals(item))
                 {
-                    var row = dataGrid.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                    var row = dataGrid.ItemContainerGenerator.ContainerFromItem(gridItem) as DataGridRow;
                     if (row != null)
                     {
                         for (int i = 0; i < dataGrid.Columns.Count; i++)
@@ -817,24 +844,24 @@ namespace WPF_LoginForm.View
             }
         }
 
-        private List<IMusteri> GetCheckedRowsFromMusteriList(List<IMusteri> musteriList)
+  /*GENERİC*/ public static List<T> GetCheckedRowsFromList<T>(List<T> itemList) where T : ISelectable
         {
-            if (musteriList == null || !musteriList.Any())
-                return new List<IMusteri>(); // Eğer liste boşsa, boş liste döndür
+            if (itemList == null || !itemList.Any())
+                return new List<T>(); // Eğer liste boşsa, boş liste döndür
 
-            var seçiliSatırlar = new List<IMusteri>(); // Seçili müşteri listesini oluştur
+            var seçiliSatırlar = new List<T>(); // Seçili listeyi oluştur
 
-            foreach (var musteri in musteriList)
+            foreach (var item in itemList)
             {
-                // Müşteri nesnesinin secim özelliğine doğrudan erişim
-                if (musteri.Secim) // secim özelliği true ise
+                if (item.Secim) // secim özelliği true ise
                 {
-                    seçiliSatırlar.Add(musteri); // Seçili müşteri listesine ekle
+                    seçiliSatırlar.Add(item); // Seçili listeye ekle
                 }
             }
 
-            return seçiliSatırlar; // Seçili müşterileri döndür
+            return seçiliSatırlar; // Seçili öğeleri döndür
         }
+
         private bool ContainsInvalidXmlChars(string text)
         {
             if (string.IsNullOrEmpty(text)) return false;
@@ -843,17 +870,17 @@ namespace WPF_LoginForm.View
             return Regex.IsMatch(text, pattern);
         }
 
-        private bool CheckRequiredColumns(List<IMusteri> musteriList)
+       /*GENERİC*/ public static bool CheckRequiredColumns<T, TEnum>(List<T> itemList) where TEnum : Enum
         {
             List<string> missingColumns = new List<string>();
 
-            foreach (RequiredColumns col in Enum.GetValues(typeof(RequiredColumns)))
+            foreach (TEnum col in Enum.GetValues(typeof(TEnum)))
             {
                 // Check if any item in the list has the property corresponding to the required column
-                bool hasColumn = musteriList.Any(musteri =>
+                bool hasColumn = itemList.Any(item =>
                 {
-                    var propertyInfo = musteri.GetType().GetProperty(col.ToString());
-                    return propertyInfo != null && propertyInfo.GetValue(musteri) != null;
+                    var propertyInfo = item.GetType().GetProperty(col.ToString());
+                    return propertyInfo != null && propertyInfo.GetValue(item) != null;
                 });
 
                 if (!hasColumn)
@@ -1027,6 +1054,16 @@ namespace WPF_LoginForm.View
         {
 
         }
+        private string GetCellValue(IXLRow row, Dictionary<string, int> columnIndices, string columnName, int defaultIndex)
+        {
+            // Belirtilen kolonu bulamazsa varsayılan index'i kullan
+            var cell = row.Cell(columnIndices.ContainsKey(columnName) ? columnIndices[columnName] : defaultIndex);
+
+            // Hücre tipi ve boşlukları kontrol et
+            string cellValue = cell?.GetValue<string>()?.Trim(); // Hücre boşsa null döner
+            return string.IsNullOrWhiteSpace(cellValue) ? null : cellValue; // Boşsa null döndür, aksi halde hücre değerini döndür
+        }
+
     }
     public enum RequiredColumns//zorunlu alanlar
     {
