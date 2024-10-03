@@ -24,19 +24,31 @@ using ClosedXML.Excel;
 using Tasarim1;
 using DocumentFormat.OpenXml.Office2010.ExcelAc;
 using ExcelToPanorama.Class;
+using ExcelToPanorama.Helpers;
+using Microsoft.Win32;
 
 
 namespace WPF_LoginForm.View
 {
-    
+
     public partial class LoginView : Window, ILoginView
     {
+        ////*        private readonly ILoginView _loginView;
+        //private readonly string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "KolonIsterlerData.txt");
+        //public KolonIsterler(ILoginView loginView)
+        //{
+        //    InitializeComponent();
+        //    _loginView = loginView;
+        //    musteriList = _loginView.GetMusteriList();
+        //    //LoadDataFromFile(filePath, musteri);
 
+        //}/
+        
         private CancellationTokenSource cancellationTokenSource;
-
-        //private DataTable dataTable;
         public static LoginView CurrentInstance { get; private set; }
-
+        ExcelHelper excelHelper = new ExcelHelper();
+        DataGridHelpers dataGridHelpers = new DataGridHelpers();
+        ErrorHelpers errorHelpers = new ErrorHelpers();
 
         public LoginView()
         {
@@ -46,15 +58,12 @@ namespace WPF_LoginForm.View
 
 
         }
-        private void btnHome_Click(object sender, RoutedEventArgs e)
+        public string GetVersionNumber()//version numarasını aldık 
         {
-            SecimEkrani secimEkrani = new SecimEkrani();
-            secimEkrani.Show();
-            this.Close();
-        }
+            return Assembly.GetExecutingAssembly().GetName().Version.ToString();
+        } 
 
-
-        private List<DataRow> GetCheckedRows()
+        /*private List<DataRow> GetCheckedRows()
         {
             var checkedRows = new List<DataRow>();
 
@@ -78,14 +87,7 @@ namespace WPF_LoginForm.View
             }
 
             return checkedRows;
-        }
-        public string GetVersionNumber()//version numarasını aldık 
-        {
-            return Assembly.GetExecutingAssembly().GetName().Version.ToString();
-        }
-
-        // Helper method to get DataGridCell from DataGrid and DataRowView
-       
+        }*/
 
         // Helper method to get VisualChild of a given type
         private T GetVisualChild<T>(DependencyObject parent) where T : DependencyObject
@@ -116,31 +118,91 @@ namespace WPF_LoginForm.View
             return foundChild;
         }
 
-        // Helper method to get DataGridCell from cell content
-        #region GetDataGridCells
-        private static DataGridCell GetDataGridCell(FrameworkElement element)
+        #region CHECK METHODS
+        /*GENERİC*/
+        private void ToggleSelection<T>(List<T> itemList, bool isChecked) where T : ISelectable
         {
-            while (element != null && !(element is DataGridCell))
+            if (itemList != null)
             {
-                element = VisualTreeHelper.GetParent(element) as FrameworkElement;
-            }
-            return element as DataGridCell;
-        }
-        private DataGridCell GetDataGridCell(DataGrid dataGrid, DataRowView row)
-        {
-            var container = dataGrid.ItemContainerGenerator.ContainerFromItem(row) as DataGridRow;
-            if (container != null)
-            {
-                var column = dataGrid.Columns.FirstOrDefault(c => c.Header.ToString() == "Seç");
-                if (column != null)
+                // Tüm kayıtların "Seç" özelliğini ayarla
+                foreach (var item in itemList)
                 {
-                    var cellContent = column.GetCellContent(container);
-                    return GetDataGridCell(cellContent);
+                    item.Secim = isChecked; // Seçim kolonundaki değeri ayarla
                 }
+
+                // DataGrid'in güncellenmesini sağlamak için
+                dataGrid.ItemsSource = itemList; // DataGrid'e yeni listeyi ata
+                dataGrid.Items.Refresh(); // DataGrid'i yenile
             }
-            return null;
         }
+
+        private void chkSelectAll_Checked(object sender, RoutedEventArgs e)
+        {
+            ToggleSelection(musteriList, true);
+        }
+
+        private void chkSelectAll_Unchecked(object sender, RoutedEventArgs e)
+        {
+            ToggleSelection(musteriList, false);
+        }
+
+        
         #endregion
+
+        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+                this.DragMove();
+        }
+
+        private List<IMusteri> musteriList = new List<IMusteri>();
+
+        #region CLICK METHODS
+        private void btnExcelYükle_Click(object sender, RoutedEventArgs e)
+        {
+
+            excelHelper.BtnExcelYukle<IMusteri>(
+                filePath => excelHelper.ReadExcelFile<IMusteri>(filePath), // Excel dosyasını okuma fonksiyonu
+                musteri => this.MusteriAL(musteri) // Alınacak fonksiyon
+            );
+        }
+
+        private async void btnBilgileriAktar_Click(object sender, RoutedEventArgs e)
+        {
+            btnLogin.IsEnabled = false;
+            BeklemeEkrani beklemeEkrani = new BeklemeEkrani
+            {
+                Owner = Window.GetWindow(this), // Ana pencereyi owner olarak ayarla
+                WindowStartupLocation = WindowStartupLocation.CenterOwner // Ortalanmış açılması için
+            };
+
+            // Yükleniyor ekranını göster
+            beklemeEkrani.Show();
+
+            // Ana pencereyi devre dışı bırak
+            this.IsEnabled = false;
+
+            // Butonu disable yap
+            btnLogin.IsEnabled = false;
+
+            try
+            {
+                // Uzun süren işleminiz burada çalışıyor
+                await MusteriBilgileriAktarAsync();  // Bu metot uzun işlemleri yapacak
+            }
+            finally
+            {
+                // İşlem tamamlandığında bekleme ekranını kapat
+                beklemeEkrani.Close();
+
+                // Ana pencereyi tekrar aktif yap
+                this.IsEnabled = true;
+
+                // Butonu tekrar aktif yap
+                btnLogin.IsEnabled = true;
+            }
+        }
+
 
         private void btnKolonSabitleriniDegistir_Click(object sender, RoutedEventArgs e)
         {
@@ -169,44 +231,11 @@ namespace WPF_LoginForm.View
             }
         }
 
-        // Tüm satırları seç
-        private void chkSelectAll_Checked(object sender, RoutedEventArgs e)
+        private void btnHome_Click(object sender, RoutedEventArgs e)
         {
-            if (musteriList != null)
-            {
-                // Tüm kayıtların "Seç" özelliğini true yap
-                foreach (var musteri in musteriList)
-                {
-                    musteri.Secim = true; // Seçim kolonundaki değeri true yap
-                }
-
-                // DataGrid'in güncellenmesini sağlamak için
-                dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
-                dataGrid.Items.Refresh(); // DataGrid'i yenile
-            }
-        }
-
-        // Tüm seçimleri kaldır
-        private void chkSelectAll_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (musteriList != null)
-            {
-                // Tüm kayıtların "Seç" özelliğini false yap
-                foreach (var musteri in musteriList)
-                {
-                    musteri.Secim = false; // Seçim kolonundaki değeri false yap
-                }
-
-                // DataGrid'in güncellenmesini sağlamak için
-                dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
-                dataGrid.Items.Refresh(); // DataGrid'i yenile
-            }
-        }
-
-        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-                this.DragMove();
+            SecimEkrani secimEkrani = new SecimEkrani();
+            secimEkrani.Show();
+            this.Close();
         }
 
         private void btnMinimize_Click(object sender, RoutedEventArgs e)
@@ -218,93 +247,8 @@ namespace WPF_LoginForm.View
         {
             this.Close();
         }
-        private List<IMusteri> musteriList = new List<IMusteri>();
+        #endregion
 
-        public List<IMusteri> ReadExcelFile(string filePath)
-        {
-            try
-            {
-                musteriList.Clear();
-                using (var workbook = new XLWorkbook(filePath))
-                {
-                    var worksheet = workbook.Worksheet(1); // İlk sayfayı seç
-                    var rows = worksheet.RowsUsed().Skip(1); // İlk satırı başlık olarak say
-                    var headers = worksheet.Row(1).Cells().Select(c => c.GetString()).ToList();
-                    var columnIndices = headers.Select((header, index) => new { header, index }).ToDictionary(x => x.header, x => x.index + 1);
-
-                    foreach (var row in rows)
-                    {
-                        var musteri = new Musteri
-                        {
-                            Durum = GetCellValue(row, columnIndices, "Durum", 1),
-                            MusteriKodu = GetCellValue(row, columnIndices, "MusteriKodu", 2),
-                            Unvan = GetCellValue(row, columnIndices, "Unvan", 3),
-                            IlgiliKisi = GetCellValue(row, columnIndices, "IlgiliKisi", 4),
-                            Adres = GetCellValue(row, columnIndices, "Adres", 5),
-                            Sehir = GetCellValue(row, columnIndices, "Şehir", 6),
-                            Ilce = GetCellValue(row, columnIndices, "İlçe", 7),
-                            TcNo = GetCellValue(row, columnIndices, "Tc No", 8),
-                            Telefon = GetCellValue(row, columnIndices, "Telefon", 9),
-                            VergiDairesi = GetCellValue(row, columnIndices, "Vergi Dairesi", 10),
-                            VergiNumarasi = GetCellValue(row, columnIndices, "Vergi Numarası", 11),
-                            MusteriGrubu = GetCellValue(row, columnIndices, "MusteriGrubu", 12),
-                            MusteriEkGrubu = GetCellValue(row, columnIndices, "MusteriEkGrubu", 13),
-                            OdemeTipi = GetCellValue(row, columnIndices, "OdemeTipi", 14),
-                            KisaAdi = GetCellValue(row, columnIndices, "KisaAdi", 15),
-                            VergiTipi = GetCellValue(row, columnIndices, "VergiTipi", 16),
-                            KoordinatX = GetCellValue(row, columnIndices, "Koordinat X", 17),
-                            KoordinatY = GetCellValue(row, columnIndices, "Koordinat Y", 18),
-                            VadeGunu = GetCellValue(row, columnIndices, "VADE GÜNÜ", 19),
-                            Iskonto = GetCellValue(row, columnIndices, "İSKONTO", 20)
-                        };
-
-                        musteriList.Add(musteri); // Listeye ekleme
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Bir hata oluştu: {ex.Message}");
-            }
-
-            return musteriList;
-        }
-        public List<IMusteri> GetMusteriList()
-        {
-            return musteriList; // Global listeyi döndürme
-        }
-        public void MusteriAL(List<IMusteri> GuncellenmisMustList)
-        {
-            musteriList = GuncellenmisMustList;
-            dataGrid.ItemsSource = musteriList;
-            dataGrid.Items.Refresh(); // DataGrid'i yenile
-
-            //return musteriList; // Global listeyi döndürme
-        }
-        private async void btnExcelYükle_Click(object sender, RoutedEventArgs e)
-        {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "Excel Dosyaları|*.xls;*.xlsx;*.xlsm",
-                Title = "Excel Dosyası Seçin"
-            };
-
-            bool? result = openFileDialog.ShowDialog();
-
-            if (result == true)
-            {
-                string filePath = openFileDialog.FileName;
-                List<IMusteri> musteri = ReadExcelFile(filePath);
-                if (musteri != null && musteri.Any())
-                {
-                    this.MusteriAL(musteri);
-                }
-                else
-                {
-                    MessageBox.Show("Veri yüklenemedi.");
-                }
-            }
-        }
         //private async void btnExcelYükle_Click(object sender, RoutedEventArgs e)
         //{
         //    var openFileDialog = new OpenFileDialog
@@ -447,86 +391,60 @@ namespace WPF_LoginForm.View
         //    }
         //}
         // Boşlukları normalleştiren yardımcı yöntem
-        private string NormalizeSpaces(string input)
+
+
+        #region MUSTERIOZEL
+        public List<IMusteri> GetMusteriList()
         {
-            // Birden fazla ardışık boşluğu tek bir boşluk ile değiştirir
-            return System.Text.RegularExpressions.Regex.Replace(input, @"\s+", " ");
+            return musteriList; // Global listeyi döndürme
         }
 
-        // Tüm boşlukları kaldıran yardımcı yöntem
-        private string RemoveAllSpaces(string input)
+        public void MusteriAL(List<IMusteri> GuncellenmisMustList)
         {
-            // Tüm boşlukları kaldırır
-            return input.Replace(" ", string.Empty);
+            musteriList = GuncellenmisMustList;
+            dataGrid.ItemsSource = musteriList;
+            dataGrid.Items.Refresh(); // DataGrid'i yenile
+
+            //return musteriList; // Global listeyi döndürme
         }
 
-
-        // Tek harfli boşlukları kaldıran yardımcı yöntem
-        private string RemoveSingleCharacterSpaces(string input)
+        private Tasarim1.CustomerIntegration MapMusteriToCustomer(IMusteri musteri)
         {
-            // Tek harfli boşlukları kaldırmak için regex kullanabiliriz
-            return System.Text.RegularExpressions.Regex.Replace(input, @"(?<=\S) (?=\S)", "");
-        }
-
-        private string ReplaceTurkishCharacters(string text)
-        {
-            return text
-                .Replace("ı", "i")
-                .Replace("İ", "I")
-                .Replace("ş", "s")
-                .Replace("Ş", "S")
-                .Replace("ç", "c")
-                .Replace("Ç", "C")
-                .Replace("ü", "u")
-                .Replace("Ü", "U")
-                .Replace("ö", "o")
-                .Replace("Ö", "O")
-                .Replace("ğ", "g")
-                .Replace("Ğ", "G");
-        }
-
-        private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
-
-        private async void btnBilgileriAktar_Click(object sender, RoutedEventArgs e)
-        {
-            btnLogin.IsEnabled = false;
-            BeklemeEkrani beklemeEkrani = new BeklemeEkrani
+            var returned = new Tasarim1.CustomerIntegration
             {
-                Owner = Window.GetWindow(this), // Ana pencereyi owner olarak ayarla
-                WindowStartupLocation = WindowStartupLocation.CenterOwner // Ortalanmış açılması için
+                Durum = (musteri.Durum != null && Enum.TryParse(musteri.Durum.ToString(), true, out DurumEnum durum)) ? (int?)durum : (int?)null,
+                ErpKod2 = musteri.MusteriKodu,
+                Unvan = musteri.Unvan,
+                IlgiliKisi = musteri.IlgiliKisi,
+                Adres1 = musteri.Adres.Replace("-", string.Empty),
+                Adres2 = "",
+                MerkezIlTextKod = musteri.Sehir,
+                Ilce = musteri.Ilce,
+                TCKimlikNo = musteri.TcNo,
+                CepTelNo = musteri.Telefon,
+                VD = musteri.VergiDairesi,
+                VN = musteri.VergiNumarasi,
+                MusteriGrupTextKod = musteri.MusteriGrubu,
+                MusteriEkGrupTextKod = musteri.MusteriEkGrubu,
+                OdemeTipi = (musteri.OdemeTipi != null && Enum.TryParse(musteri.OdemeTipi.ToString(), true, out OdemeTipiEnum odemeTipiEnum)) ? (int?)odemeTipiEnum : (int?)null,
+                KisaAd = musteri.KisaAdi,
+                KdvMuaf = (musteri.VergiTipi != null && Enum.TryParse(musteri.VergiTipi.ToString(), true, out VergiTipiEnum vergiTipiEnum)) ? (int?)vergiTipiEnum : (int?)null,
+                KoordinatX = (musteri.KoordinatX != null) ? Convert.ToDecimal(musteri.KoordinatX) : (decimal?)null,
+                KoordinatY = (musteri.KoordinatY != null) ? Convert.ToDecimal(musteri.KoordinatY) : (decimal?)null,
+                VadeGun = (musteri.VadeGunu != null) ? Convert.ToInt32(musteri.VadeGunu) : (int?)null,
+                IskontoOran = (musteri.Iskonto != null) ? Convert.ToDecimal(musteri.Iskonto) : (decimal?)null
             };
-
-            // Yükleniyor ekranını göster
-            beklemeEkrani.Show();
-
-            // Ana pencereyi devre dışı bırak
-            this.IsEnabled = false;
-
-            // Butonu disable yap
-            btnLogin.IsEnabled = false;
-
-            try
+            if (!string.IsNullOrWhiteSpace(returned.Adres1) && returned.Adres1.Length > 45)
             {
-                // Uzun süren işleminiz burada çalışıyor
-                await BilgileriAktarAsync();  // Bu metot uzun işlemleri yapacak
+                // Adres1'in ilk 45 karakteri
+                returned.Adres2 = returned.Adres1.Substring(45); // 45. karakterden itibaren geri kalanlar Adres2
+                returned.Adres1 = returned.Adres1.Substring(0, 45); // İlk 45 karakter Adres1
             }
-            finally
-            {
-                // İşlem tamamlandığında bekleme ekranını kapat
-                beklemeEkrani.Close();
+            return returned;
 
-                // Ana pencereyi tekrar aktif yap
-                this.IsEnabled = true;
-
-                // Butonu tekrar aktif yap
-                btnLogin.IsEnabled = true;
-            }
         }
 
-        private async Task BilgileriAktarAsync()
+        private async Task MusteriBilgileriAktarAsync()
         {
             string panServisLinki = txtLink.Text;
             string panServisSifresi = txtSifre.Text;
@@ -548,7 +466,7 @@ namespace WPF_LoginForm.View
             try
             {
                 List<IMusteri> musteriList = GetMusteriList();
-                List<IMusteri> rowsToProcess = GetCheckedRowsFromList(musteriList);
+                List<IMusteri> rowsToProcess = ExcelHelper.GetCheckedRowsFromList(musteriList);
 
                 if (!rowsToProcess.Any())
                 {
@@ -583,7 +501,7 @@ namespace WPF_LoginForm.View
                             return;
                         }
 
-                        ClearRowCellBackground(musteri, musteriList, dataGrid);
+                        dataGridHelpers.ClearRowCellBackground(musteri, musteriList, dataGrid);
 
                         var customers = new List<Tasarim1.CustomerIntegration> { MapMusteriToCustomer(musteri) };
                         string xmlData = ConvertCustomersToXML(customers, UserName, panServisSifresi, firmaKodu, calismaYili, dist);
@@ -594,28 +512,28 @@ namespace WPF_LoginForm.View
                             .PostStringAsync(xmlData);
 
                         string responseString = await response.GetStringAsync();
-                        string errorMessage = ParseErrorMessageFromResponse(responseString);
+                        string errorMessage = errorHelpers.ParseErrorMessageFromResponse(responseString);
 
                         string musteriKodu = musteri.MusteriKodu;
 
                         if (!string.IsNullOrEmpty(errorMessage))
                         {
-                            HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
-                            AppendErrorMessage($"Hata: {errorMessage}", musteriKodu);
+                            dataGridHelpers.HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
+                            errorHelpers.AppendErrorMessage($"Hata: {errorMessage}", musteriKodu, 0);
                         }
                         else
                         {
-                            HighlightSuccessfulCells(musteri, dataGrid, Colors.LightGreen);
-                            AppendErrorMessage("Başarılı bir şekilde aktarım gerçekleşti", musteriKodu);
+                            DataGridHelpers.HighlightSuccessfulCells(musteri, dataGrid, Colors.LightGreen);
+                            errorHelpers.AppendErrorMessage("Başarılı bir şekilde aktarım gerçekleşti", musteriKodu,0);
                         }
                     }
                     catch (FlurlHttpException ex)
                     {
                         string errorResponse = await ex.GetResponseStringAsync();
-                        string errorMessage = ParseErrorMessage(errorResponse);
+                        string errorMessage = errorHelpers.ParseErrorMessage(errorResponse);
                         string musteriKodu = musteri.MusteriKodu;
-                        HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
-                        AppendErrorMessage($"Hata: {ex.Message}\nYanıt: {errorMessage}", musteriKodu);
+                        dataGridHelpers.HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
+                        errorHelpers.AppendErrorMessage($"Hata: {ex.Message}\nYanıt: {errorMessage}", musteriKodu,0);
                     }
                     catch (System.Security.SecurityException ex)
                     {
@@ -626,8 +544,8 @@ namespace WPF_LoginForm.View
                     catch (Exception ex)
                     {
                         string musteriKodu = musteri.MusteriKodu;
-                        HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
-                        AppendErrorMessage($"Hata: {ex.Message}", musteriKodu);
+                        dataGridHelpers.HighlightInvalidCells(musteri, musteriList, dataGrid, Colors.LightCoral);
+                        errorHelpers.AppendErrorMessage($"Hata: {ex.Message}", musteriKodu, 0);
                     }
 
                     await Task.Delay(1000);
@@ -640,307 +558,11 @@ namespace WPF_LoginForm.View
             }
             catch (Exception ex)
             {
-                AppendErrorMessage($"İstek gönderilirken bir hata oluştu: {ex.Message}", "");
-            }
-        }
-        private void SetAllCheckBoxes(bool isChecked)
-        {
-            // Musteri listesinin her bir öğesi üzerinde gezinin
-            foreach (var musteri in musteriList)
-            {
-                // Her müşteri için seçim durumunu ayarlayın
-                musteri.Secim = isChecked;
-            }
-
-            // DataGrid'in güncellenmesini sağlamak için
-            dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
-            dataGrid.Items.Refresh(); // DataGrid'i yenile
-        }
-        /*GENERİC*/
-        private CheckBox GetCheckBoxForRow<T>(List<T> itemList, T item) where T : IMusteri, IUrun
-        {
-            int rowIndex = itemList.IndexOf(item);
-
-            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
-                return null;
-
-            var rowContainer = dataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex) as DataGridRow;
-
-            if (rowContainer == null)
-            {
-                // Eğer satır henüz oluşturulmadıysa, zorunlu olarak oluşturulmasını sağlar
-                dataGrid.UpdateLayout();
-                dataGrid.ScrollIntoView(dataGrid.Items[rowIndex]);
-                rowContainer = dataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex) as DataGridRow;
-            }
-
-            if (rowContainer != null)
-            {
-                // CheckBox'ın bulunduğu hücreyi al
-                var cellContent = dataGrid.Columns[0].GetCellContent(rowContainer);
-                var checkBox = cellContent as CheckBox;
-
-                return checkBox;
-            }
-
-            return null;
-        }
-        /*GENERİC*/
-        private void ClearRowCellBackground<T>(T item, List<T> itemList, DataGrid dataGrid)
-        {
-            // Verilen nesnenin indexini bul
-            int rowIndex = itemList.IndexOf(item); // itemList, List<T> tipinde olmalı
-
-            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
-                return; // Geçersiz index kontrolü
-
-            for (int i = 0; i < dataGrid.Columns.Count; i++)
-            {
-                var cell = dataGrid.Columns[i].GetCellContent(dataGrid.Items[rowIndex]);
-                if (cell != null)
-                {
-                    var dataGridCell = GetDataGridCell(cell);
-                    if (dataGridCell != null)
-                    {
-                        dataGridCell.Background = Brushes.White; // Varsayılan arka plan rengi
-                    }
-                }
+                errorHelpers.AppendErrorMessage($"İstek gönderilirken bir hata oluştu: {ex.Message}", "", 0);
             }
         }
 
-
-
-        //AKTARILAN HÜCRELERİ BOYAMA
-/*GENERİC*/private void HighlightInvalidCells<T>(T item, List<T> itemList, DataGrid dataGrid, System.Windows.Media.Color color)
-        {
-            // Verilen nesnenin indexini bul
-            int rowIndex = itemList.IndexOf(item); // itemList, List<T> tipinde olmalı
-
-            if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
-                return; // Geçersiz index kontrolü
-
-            for (int i = 0; i < dataGrid.Columns.Count; i++)
-            {
-                var cell = dataGrid.Columns[i].GetCellContent(dataGrid.Items[rowIndex]);
-                if (cell != null)
-                {
-                    var dataGridCell = GetDataGridCell(cell);
-                    if (dataGridCell != null)
-                    {
-                        dataGridCell.Background = new SolidColorBrush(color); // Geçersiz hücre arka plan rengi
-                    }
-                }
-            }
-        }
-
-
-        //private void HighlightSuccessfulCells(IMusteri musteri, System.Windows.Media.Color color)
-        //{
-        //    // IMusteri nesnesinin indexini bul
-        //    int rowIndex = musteriList.IndexOf(musteri); // Eğer musteriList bir List<IMusteri> ise
-
-        //    if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
-        //        return; // Geçersiz index kontrolü
-
-        //    for (int i = 0; i < dataGrid.Columns.Count; i++)
-        //    {
-        //        var cell = dataGrid.Columns[i].GetCellContent(dataGrid.Items[rowIndex]);
-        //        if (cell != null)
-        //        {
-        //            var dataGridCell = GetDataGridCell(cell);
-        //            if (dataGridCell != null)
-        //            {
-        //                dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
-        //            }
-        //        }
-        //    }
-        //}
-  /*GENERİC*/ public static void HighlightSuccessfulCells<T>(T item, DataGrid dataGrid, System.Windows.Media.Color color)
-        {
-            // T türündeki nesneyi dataGrid'deki öğelerle eşleştir
-            foreach (var gridItem in dataGrid.Items)
-            {
-                if (gridItem.Equals(item))
-                {
-                    var row = dataGrid.ItemContainerGenerator.ContainerFromItem(gridItem) as DataGridRow;
-                    if (row != null)
-                    {
-                        for (int i = 0; i < dataGrid.Columns.Count; i++)
-                        {
-                            var cell = dataGrid.Columns[i].GetCellContent(row);
-                            if (cell != null)
-                            {
-                                var dataGridCell = GetDataGridCell(cell);
-                                if (dataGridCell != null)
-                                {
-                                    dataGridCell.Background = new SolidColorBrush(color); // Başarılı hücre arka plan rengi
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        private void AppendErrorMessage(string message, string MusteriKodu)
-        {
-            string fullMessage = $"MusteriKodu: {MusteriKodu} - {message}";
-            Paragraph paragraph = new Paragraph(new Run(fullMessage));
-            rtbErrorMessages.Document.Blocks.Add(paragraph);
-            rtbErrorMessages.ScrollToEnd();
-        }
-
-
-
-
-        private string ParseErrorMessage(string response)
-        {
-            var xmlDoc = new XmlDocument();
-            xmlDoc.LoadXml(response);
-            var errorNode = xmlDoc.SelectSingleNode("//error");
-            return errorNode?.InnerText ?? "Bilinmeyen bir hata oluştu.";
-        }
-
-
-
-        private (bool hasExceptions, string exceptionMessages) ParseResponseForExceptions(string response)
-        {
-            var exceptionMessages = new List<string>();
-
-            var startIndex = 0;
-            while ((startIndex = response.IndexOf("@Message       :", startIndex)) != -1)
-            {
-                startIndex += "@Message       :".Length;
-                var endIndex = response.IndexOf("@", startIndex);
-                if (endIndex == -1) endIndex = response.Length;
-
-                var message = response.Substring(startIndex, endIndex - startIndex).Trim();
-                exceptionMessages.Add(message);
-
-                startIndex = endIndex;
-            }
-
-            return (exceptionMessages.Count > 0, string.Join("\n", exceptionMessages));
-        }
-
-
-        private string ParseErrorMessageFromResponse(string responseString)
-        {
-            try
-            {
-                var xDoc = XDocument.Parse(responseString);
-                var errorElements = xDoc.Descendants().Where(e => e.Name.LocalName == "Hata");
-                List<string> errorMessages = new List<string>();
-                foreach (var errorElement in errorElements)
-                {
-                    errorMessages.Add(errorElement.Value);
-                }
-                return string.Join("\n", errorMessages);
-            }
-            catch (Exception ex)
-            {
-                // Handle any exceptions that occur during XML parsing
-                return $"XML Yanıtı çözümleme hatası: {ex.Message}";
-            }
-        }
-
-  /*GENERİC*/ public static List<T> GetCheckedRowsFromList<T>(List<T> itemList) where T : ISelectable
-        {
-            if (itemList == null || !itemList.Any())
-                return new List<T>(); // Eğer liste boşsa, boş liste döndür
-
-            var seçiliSatırlar = new List<T>(); // Seçili listeyi oluştur
-
-            foreach (var item in itemList)
-            {
-                if (item.Secim) // secim özelliği true ise
-                {
-                    seçiliSatırlar.Add(item); // Seçili listeye ekle
-                }
-            }
-
-            return seçiliSatırlar; // Seçili öğeleri döndür
-        }
-
-        private bool ContainsInvalidXmlChars(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return false;
-
-            string pattern = @"[^\x09\x0A\x0D\x20-\xD7FF\xE000-\xFFFD\x10000-x10FFFF]";
-            return Regex.IsMatch(text, pattern);
-        }
-
-       /*GENERİC*/ public static bool CheckRequiredColumns<T, TEnum>(List<T> itemList) where TEnum : Enum
-        {
-            List<string> missingColumns = new List<string>();
-
-            foreach (TEnum col in Enum.GetValues(typeof(TEnum)))
-            {
-                // Check if any item in the list has the property corresponding to the required column
-                bool hasColumn = itemList.Any(item =>
-                {
-                    var propertyInfo = item.GetType().GetProperty(col.ToString());
-                    return propertyInfo != null && propertyInfo.GetValue(item) != null;
-                });
-
-                if (!hasColumn)
-                {
-                    missingColumns.Add(col.ToString());
-                }
-            }
-
-            if (missingColumns.Count > 0)
-            {
-                // Message to show when required columns are missing
-                string errorMessage = "Gerekli sütunlar eksik: " + string.Join(", ", missingColumns);
-                // MessageBox.Show(errorMessage, "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                // Create notification message
-                var notificationMessage = new Tasarim1.BildirimMesaji(errorMessage);
-                notificationMessage.Show();
-
-                return false;
-            }
-
-            return true;
-        }
-        private Tasarim1.CustomerIntegration MapMusteriToCustomer(IMusteri musteri)
-        {
-            var returned = new Tasarim1.CustomerIntegration
-            {
-                Durum = (musteri.Durum != null && Enum.TryParse(musteri.Durum.ToString(), true, out DurumEnum durum)) ? (int?)durum : (int?)null,
-                ErpKod2 = musteri.MusteriKodu,
-                Unvan = musteri.Unvan,
-                IlgiliKisi = musteri.IlgiliKisi,
-                Adres1 = musteri.Adres.Replace("-", string.Empty),
-                Adres2 = "",
-                MerkezIlTextKod = musteri.Sehir,
-                Ilce = musteri.Ilce,
-                TCKimlikNo = musteri.TcNo,
-                CepTelNo = musteri.Telefon,
-                VD = musteri.VergiDairesi,
-                VN = musteri.VergiNumarasi,
-                MusteriGrupTextKod = musteri.MusteriGrubu,
-                MusteriEkGrupTextKod = musteri.MusteriEkGrubu,
-                OdemeTipi = (musteri.OdemeTipi != null && Enum.TryParse(musteri.OdemeTipi.ToString(), true, out OdemeTipiEnum odemeTipiEnum)) ? (int?)odemeTipiEnum : (int?)null,
-                KisaAd = musteri.KisaAdi,
-                KdvMuaf = (musteri.VergiTipi != null && Enum.TryParse(musteri.VergiTipi.ToString(), true, out VergiTipiEnum vergiTipiEnum)) ? (int?)vergiTipiEnum : (int?)null,
-                KoordinatX = (musteri.KoordinatX != null) ? Convert.ToDecimal(musteri.KoordinatX) : (decimal?)null,
-                KoordinatY = (musteri.KoordinatY != null) ? Convert.ToDecimal(musteri.KoordinatY) : (decimal?)null,
-                VadeGun = (musteri.VadeGunu != null) ? Convert.ToInt32(musteri.VadeGunu) : (int?)null,
-                IskontoOran = (musteri.Iskonto != null) ? Convert.ToDecimal(musteri.Iskonto) : (decimal?)null
-            };
-            if (!string.IsNullOrWhiteSpace(returned.Adres1) && returned.Adres1.Length > 45)
-            {
-                // Adres1'in ilk 45 karakteri
-                returned.Adres2 = returned.Adres1.Substring(45); // 45. karakterden itibaren geri kalanlar Adres2
-                returned.Adres1 = returned.Adres1.Substring(0, 45); // İlk 45 karakter Adres1
-            }
-            return returned;
-           
-        }
-
-        private string ConvertCustomersToXML(List<Tasarim1.CustomerIntegration> customers, string UserName, string panServisSifresi, string firmaKodu, string calismaYili, string dist)
+        public string ConvertCustomersToXML(List<Tasarim1.CustomerIntegration> customers, string UserName, string panServisSifresi, string firmaKodu, string calismaYili, string dist)
         {
             if (customers == null || customers.Count == 0)
                 throw new InvalidOperationException("Customer list is empty or invalid.");
@@ -1012,9 +634,9 @@ namespace WPF_LoginForm.View
                                 {
                                     stringValue = ((int?)value).GetValueOrDefault().ToString();
                                 }
-                                
-                                    xmlWriter.WriteElementString(prop.Name, stringValue);
-                                
+
+                                xmlWriter.WriteElementString(prop.Name, stringValue);
+
                             }
                         }
 
@@ -1044,27 +666,179 @@ namespace WPF_LoginForm.View
                 return Encoding.UTF8.GetString(memoryStream.ToArray());
             }
         }
-
-        private void DataGrid_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
+        #endregion
 
         private void dataGrid_SelectionChanged_2(object sender, SelectionChangedEventArgs e)
         {
 
         }
-        private string GetCellValue(IXLRow row, Dictionary<string, int> columnIndices, string columnName, int defaultIndex)
-        {
-            // Belirtilen kolonu bulamazsa varsayılan index'i kullan
-            var cell = row.Cell(columnIndices.ContainsKey(columnName) ? columnIndices[columnName] : defaultIndex);
 
-            // Hücre tipi ve boşlukları kontrol et
-            string cellValue = cell?.GetValue<string>()?.Trim(); // Hücre boşsa null döner
-            return string.IsNullOrWhiteSpace(cellValue) ? null : cellValue; // Boşsa null döndür, aksi halde hücre değerini döndür
+        public void RbtErrorMessageErrorHelpers(Paragraph paragraph)
+        {
+            rtbErrorMessages.Document.Blocks.Add(paragraph);
+            rtbErrorMessages.ScrollToEnd();
         }
 
+        #region 0 REFERANSLI KODLAR
+        private string NormalizeSpaces(string input)
+        {
+            // Birden fazla ardışık boşluğu tek bir boşluk ile değiştirir
+            return Regex.Replace(input, @"\s+", " ");
+        }
+        // Tüm boşlukları kaldıran yardımcı yöntem
+        private string RemoveAllSpaces(string input)
+        {
+            // Tüm boşlukları kaldırır
+            return input.Replace(" ", string.Empty);
+        }
+        // Tek harfli boşlukları kaldıran yardımcı yöntem
+        private string RemoveSingleCharacterSpaces(string input)
+        {
+            // Tek harfli boşlukları kaldırmak için regex kullanabiliriz
+            return Regex.Replace(input, @"(?<=\S) (?=\S)", "");
+        }
+        private string ReplaceTurkishCharacters(string text)
+        {
+            return text
+                .Trim()
+                .ToUpper()
+                .Replace("ı", "i")
+                .Replace("İ", "I")
+                .Replace("ş", "s")
+                .Replace("Ş", "S")
+                .Replace("ç", "c")
+                .Replace("Ç", "C")
+                .Replace("ü", "u")
+                .Replace("Ü", "U")
+                .Replace("ö", "o")
+                .Replace("Ö", "O")
+                .Replace("ğ", "g")
+                .Replace("Ğ", "G");
+        }
+        private bool ContainsInvalidXmlChars(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+
+            string pattern = @"[^\x09\x0A\x0D\x20-\xD7FF\xE000-\xFFFD\x10000-x10FFFF]";
+            return Regex.IsMatch(text, pattern);
+        }
+
+
+        private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+        private void DataGrid_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+
+        #region GereksizCheckBox
+        //private void SetAllCheckBoxes(bool isChecked)
+        //{
+        //    // Musteri listesinin her bir öğesi üzerinde gezinin
+        //    foreach (var musteri in musteriList)
+        //    {
+        //        // Her müşteri için seçim durumunu ayarlayın
+        //        musteri.Secim = isChecked;
+        //    }
+
+        //    // DataGrid'in güncellenmesini sağlamak için
+        //    dataGrid.ItemsSource = musteriList; // DataGrid'e yeni listeyi ata
+        //    dataGrid.Items.Refresh(); // DataGrid'i yenile
+        //}
+        /*GENERİC*/
+        //private CheckBox GetCheckBoxForRow<T>(List<T> itemList, T item) where T : IMusteri, IUrun
+        //{
+        //    int rowIndex = itemList.IndexOf(item);
+
+        //    if (rowIndex < 0 || rowIndex >= dataGrid.Items.Count)
+        //        return null;
+
+        //    var rowContainer = dataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex) as DataGridRow;
+
+        //    if (rowContainer == null)
+        //    {
+        //        // Eğer satır henüz oluşturulmadıysa, zorunlu olarak oluşturulmasını sağlar
+        //        dataGrid.UpdateLayout();
+        //        dataGrid.ScrollIntoView(dataGrid.Items[rowIndex]);
+        //        rowContainer = dataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex) as DataGridRow;
+        //    }
+
+        //    if (rowContainer != null)
+        //    {
+        //        // CheckBox'ın bulunduğu hücreyi al
+        //        var cellContent = dataGrid.Columns[0].GetCellContent(rowContainer);
+        //        var checkBox = cellContent as CheckBox;
+
+        //        return checkBox;
+        //    }
+
+        //    return null;
+        //}
+
+        #endregion
+        private (bool hasExceptions, string exceptionMessages) ParseResponseForExceptions(string response)
+        {
+            var exceptionMessages = new List<string>();
+
+            var startIndex = 0;
+            while ((startIndex = response.IndexOf("@Message       :", startIndex)) != -1)
+            {
+                startIndex += "@Message       :".Length;
+                var endIndex = response.IndexOf("@", startIndex);
+                if (endIndex == -1) endIndex = response.Length;
+
+                var message = response.Substring(startIndex, endIndex - startIndex).Trim();
+                exceptionMessages.Add(message);
+
+                startIndex = endIndex;
+            }
+
+            return (exceptionMessages.Count > 0, string.Join("\n", exceptionMessages));
+        }
+
+        //public static bool CheckRequiredColumns<T, TEnum>(List<T> itemList) where TEnum : Enum
+        //{
+        //    List<string> missingColumns = new List<string>();
+
+        //    foreach (TEnum col in Enum.GetValues(typeof(TEnum)))
+        //    {
+        //        // Check if any item in the list has the property corresponding to the required column
+        //        bool hasColumn = itemList.Any(item =>
+        //        {
+        //            var propertyInfo = item.GetType().GetProperty(col.ToString());
+        //            return propertyInfo != null && propertyInfo.GetValue(item) != null;
+        //        });
+
+        //        if (!hasColumn)
+        //        {
+        //            missingColumns.Add(col.ToString());
+        //        }
+        //    }
+
+        //    if (missingColumns.Count > 0)
+        //    {
+        //        // Message to show when required columns are missing
+        //        string errorMessage = "Gerekli sütunlar eksik: " + string.Join(", ", missingColumns);
+        //        // MessageBox.Show(errorMessage, "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+
+        //        // Create notification message
+        //        var notificationMessage = new Tasarim1.BildirimMesaji(errorMessage);
+        //        notificationMessage.Show();
+
+        //        return false;
+        //    }
+
+        //    return true;
+        //}
+
+
+        #endregion
+
     }
+    #region ENUMS
     public enum RequiredColumns//zorunlu alanlar
     {
         Durum,
@@ -1109,6 +883,7 @@ namespace WPF_LoginForm.View
         PotansiyelPasif = 4,
         PotansiyelAktif = 5
     }
+    #endregion
 
 
 }

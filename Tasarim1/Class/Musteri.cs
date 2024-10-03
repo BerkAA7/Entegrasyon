@@ -10,6 +10,8 @@ namespace ExcelToPanorama
 
     public class Musteri : IMusteri
     {
+
+        public Musteri() { }
         public bool Secim { get; set ; }
         public string Durum { get; set; }
         public string IlgiliKisi { get; set; }

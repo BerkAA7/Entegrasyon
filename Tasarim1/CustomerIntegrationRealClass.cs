@@ -35,4 +35,28 @@ namespace Tasarim1
             public int? VadeGun { get; set; }
             public decimal? IskontoOran { get; set; }
     }
+
+    public class ProductIntegration
+    {
+        public string TextKod { get; set; }
+        public string Ad { get; set; }
+        public string KisaAd { get; set; }
+        public string UrunGrupKod { get; set; }
+        public string UrunEkGrupKod { get; set; }
+        public string Hiyerarsi1TextKod { get; set; }
+        public string UreticiKodu { get; set; }
+        public string Birim1 { get; set; }
+        public string Barkod1 { get; set; }
+        public string Birim2 { get; set; }
+        public string Barkod2 { get; set; }
+        public decimal? Cevrim2 { get; set; }
+        public string Birim3 { get; set; }
+        public string Barkod3 { get; set; }
+        public decimal? Cevrim3 { get; set; }
+        public decimal? KdvOran { get; set; }
+        public byte? UrunTip { get; set; }
+        public decimal? Kdvoranalis { get; set; }
+        public string UrunAciklama { get; set; }
+
+    }
 }

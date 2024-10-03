@@ -315,7 +315,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button x:Name="btnExcelYükle"
+                    <Button x:Name="btnExcelYükle_click"
                             BorderThickness="0"
                             Content="Excel Yükle"
                             Foreground="White"
@@ -457,16 +457,7 @@
                     </Style>
                 </DataGrid.Resources>
 
-                <DataGrid.Columns>
-                    <!-- Seçim sütunu -->
-                    <DataGridTemplateColumn Header="Seç">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding Path=Seç, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
+                
             </DataGrid>
 
 

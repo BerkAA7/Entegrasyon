@@ -19,8 +19,6 @@ namespace WPF_LoginForm.View
         {
             InitializeComponent();
             _loginView = loginView;
-            //var filePath = "path_to_your_excel_file.xlsx";
-            //_loginView.ReadExcelFile(filePath);
             musteriList = _loginView.GetMusteriList();
             //LoadDataFromFile(filePath, musteri);
 

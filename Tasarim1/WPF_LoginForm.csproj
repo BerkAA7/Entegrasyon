@@ -217,6 +217,9 @@
     <Compile Include="Class\IMusteri.cs" />
     <Compile Include="Class\IUrun.cs" />
     <Compile Include="Class\Urun.cs" />
+    <Compile Include="Helpers\DataGridHelpers.cs" />
+    <Compile Include="Helpers\ErrorHelpers.cs" />
+    <Compile Include="Helpers\ExcelHelpers.cs" />
     <Compile Include="Interface\ILoginView.cs" />
     <Compile Include="KolonIsterlerUrun.xaml.cs">
       <DependentUpon>KolonIsterlerUrun.xaml</DependentUpon>
