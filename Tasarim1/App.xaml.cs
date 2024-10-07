@@ -1,4 +1,6 @@
-﻿using ExcelToPanorama.Interface;
+﻿using ExcelToPanorama.Class;
+using ExcelToPanorama.Helpers;
+using ExcelToPanorama.Interface;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Windows;
@@ -24,12 +26,14 @@ namespace Tasarim1
 
             ServiceProvider = serviceCollection.BuildServiceProvider();
 
+            var loginView = ServiceProvider.GetRequiredService<LoginView>();
             //var kolonIsterler = ServiceProvider.GetRequiredService<KolonIsterler>();
             //kolonIsterler.Show();
         }
 
         private void ConfigureServices(IServiceCollection services)
         {
+            services.AddTransient<LoginView>();
             services.AddTransient<ILoginView, LoginView>();
             services.AddTransient<KolonIsterler>();
         }

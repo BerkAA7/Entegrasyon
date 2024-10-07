@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Xml;
 using ExcelToPanorama.Interface;
+using System.Windows.Controls;
 
 namespace ExcelToPanorama.Helpers
 {
@@ -56,67 +57,19 @@ namespace ExcelToPanorama.Helpers
                 {
                     var worksheet = workbook.Worksheet(1); // İlk sayfayı seç
                     var rows = worksheet.RowsUsed().Skip(1); // İlk satırı başlık olarak say
-                    var headers = worksheet.Row(1).Cells().Select(c => c.GetString()).ToList();
+                    var headers = worksheet.Row(1).Cells().Select(c => ReplaceTurkishCharacters(c.GetString())).ToList();
                     var columnIndices = headers.Select((header, index) => new { header, index }).ToDictionary(x => x.header, x => x.index + 1);
 
-                    foreach (var row in rows)
+                    foreach (var column in columnIndices)
                     {
-                        T obj = default(T); // Başlangıçta varsayılan değeri ayarlayın
+                        Console.WriteLine($"{column.Key}: {column.Value}");
+                    }
 
-                        if (typeof(T) == typeof(IMusteri)) // Musteri işlemleri
-                        {
-                            obj = (T)(ISelectable)Activator.CreateInstance(typeof(Musteri)); // Somut Musteri sınıfını oluştur
-                            var musteri = (IMusteri)obj;
+                    foreach (IXLRow row in rows)
+                    {
+                        var obj = (T)(ISelectable)Activator.CreateInstance(typeof(Musteri)); // Somut Musteri sınıfını oluştur
 
-                            // Hücre değerlerini atayın
-                            musteri.Durum = GetCellValue(row, columnIndices, "Durum", 1);
-                            musteri.MusteriKodu = GetCellValue(row, columnIndices, "MusteriKodu", 2);
-                            musteri.Unvan = GetCellValue(row, columnIndices, "Unvan", 3);
-                            musteri.IlgiliKisi = GetCellValue(row, columnIndices, "IlgiliKisi", 4);
-                            musteri.Adres = GetCellValue(row, columnIndices, "Adres", 5);
-                            musteri.Sehir = GetCellValue(row, columnIndices, "Şehir", 6);
-                            musteri.Ilce = GetCellValue(row, columnIndices, "İlçe", 7);
-                            musteri.TcNo = GetCellValue(row, columnIndices, "Tc No", 8);
-                            musteri.Telefon = GetCellValue(row, columnIndices, "Telefon", 9);
-                            musteri.VergiDairesi = GetCellValue(row, columnIndices, "Vergi Dairesi", 10);
-                            musteri.VergiNumarasi = GetCellValue(row, columnIndices, "Vergi Numarası", 11);
-                            musteri.MusteriGrubu = GetCellValue(row, columnIndices, "MusteriGrubu", 12);
-                            musteri.MusteriEkGrubu = GetCellValue(row, columnIndices, "MusteriEkGrubu", 13);
-                            musteri.OdemeTipi = GetCellValue(row, columnIndices, "OdemeTipi", 14);
-                            musteri.KisaAdi = GetCellValue(row, columnIndices, "KisaAdi", 15);
-                            musteri.VergiTipi = GetCellValue(row, columnIndices, "VergiTipi", 16);
-                            musteri.KoordinatX = GetCellValue(row, columnIndices, "Koordinat X", 17);
-                            musteri.KoordinatY = GetCellValue(row, columnIndices, "Koordinat Y", 18);
-                            musteri.VadeGunu = GetCellValue(row, columnIndices, "VADE GÜNÜ", 19);
-                            musteri.Iskonto = GetCellValue(row, columnIndices, "İSKONTO", 20);
-                        }
-                        else if (typeof(T) == typeof(IUrun)) // Urun işlemleri
-                        {
-                            obj = (T)(ISelectable)Activator.CreateInstance(typeof(Urun)); // Somut Urun sınıfını oluştur
-                            var urun = (IUrun)obj;
-
-                            // Hücre değerlerini atayın
-                            urun.UrunKodu = GetCellValue(row, columnIndices, "Ürün Kodu", 1);
-                            urun.UrunAdi = GetCellValue(row, columnIndices, "Ürün Adı", 2);
-                            urun.UrunKisaAdi = GetCellValue(row, columnIndices, "Ürün Kısa Adı", 3);
-                            urun.UrunGrupKodu = GetCellValue(row, columnIndices, "Ürün Grup Kodu", 4);
-                            urun.UrunEkGrupKodu = GetCellValue(row, columnIndices, "Ürün Ek Grup Kodu", 5);
-                            urun.SeviyeliGrup1 = GetCellValue(row, columnIndices, "Seviyeli Grup 1", 6);
-                            urun.UreticiKodu = GetCellValue(row, columnIndices, "Üretici Kodu", 7);
-                            urun.Birim1 = GetCellValue(row, columnIndices, "Birim 1", 8);
-                            urun.Barkod1 = GetCellValue(row, columnIndices, "Barkod 1", 9);
-                            urun.Birim2 = GetCellValue(row, columnIndices, "Birim 2", 10);
-                            urun.Barkod2 = GetCellValue(row, columnIndices, "Barkod 2", 11);
-                            urun.BirimCarpani2 = GetCellValue(row, columnIndices, "Birim Çarpanı 2", 12);
-                            urun.Birim3 = GetCellValue(row, columnIndices, "Birim 3", 13);
-                            urun.Barkod3 = GetCellValue(row, columnIndices, "Barkod 3", 14);
-                            urun.BirimCarpani3 = GetCellValue(row, columnIndices, "Birim Çarpanı 3", 15);
-                            urun.SatisKDVOrani = GetCellValue(row, columnIndices, "Satış KDV Oranı", 16);
-                            urun.UrunTip = GetCellValue(row, columnIndices, "URUN TIP", 17);
-                            urun.AlisKDVOrani = GetCellValue(row, columnIndices, "ALIS KDV ORANI", 18);
-                            urun.UrunAciklama = GetCellValue(row, columnIndices, "URUN ACIKLAMA", 19);
-                        }
-
+                        SetMusteriFields(obj, row, columnIndices); // Reflection ile dinamik olarak özellikleri dolduruyoruz
                         list.Add(obj);
                     }
                 }
@@ -128,19 +81,93 @@ namespace ExcelToPanorama.Helpers
                 return null;
             }
         }
-
-        private string GetCellValue(IXLRow row, Dictionary<string, int> columnIndices, string columnName, int defaultIndex)
+        private void SetMusteriFields<T>(T obj, IXLRow row, Dictionary<string, int> columnIndices)
         {
+            var propertyMappings = new Dictionary<string, string>()
+    {
+        { "Durum", "DURUM" },
+        { "MusteriKodu", "MUSTERI KODU" },
+        { "Unvan", "UNVAN" },
+        { "IlgiliKisi", "ILGILI KISI" },
+        { "Adres", "ADRES" },
+        { "Sehir", "SEHIR" },
+        { "Ilce", "ILCE" },
+        { "TcNo", "TC NO" },
+        { "Telefon", "TELEFON" },
+        { "VergiDairesi", "VERGI DAIRESI" },
+        { "VergiNumarasi", "VERGI NUMARASI" },
+        { "MusteriGrubu", "MUSTERI GRUBU" },
+        { "MusteriEkGrubu", "MUSTERI EK GRUBU" },
+        { "OdemeTipi", "ODEME TIPI" },
+        { "KisaAdi", "KISA ADI" },
+        { "VergiTipi", "VERGI TIPI" },
+        { "KoordinatX", "KOORDINAT X" },
+        { "KoordinatY", "KOORDINAT Y" },
+        { "VadeGunu", "VADE GUNU" },
+        { "Iskonto", "ISKONTO" }
+    };
 
-            // Belirtilen kolonu bulamazsa varsayılan index'i kullan
-            var cell = row.Cell(columnIndices.ContainsKey(columnName) ? columnIndices[columnName] : defaultIndex);
+            foreach (var mapping in propertyMappings)
+            {
+                var property = obj.GetType().GetProperty(mapping.Key);
+                if (property != null && property.CanWrite)
+                {
+                    var cellValue = GetCellValue(row, columnIndices, mapping.Value);
+                    property.SetValue(obj, cellValue);
+                }
+            }
+        }
+        private string ReplaceTurkishCharacters(string text)
+        {
+            return text
+                .Trim()
+                .ToUpper()
+                .Replace("İ", "I")
+                .Replace("Ş", "S")
+                .Replace("Ç", "C")
+                .Replace("Ü", "U")
+                .Replace("Ö", "O")
+                .Replace("Ğ", "G")
+                .Replace("ı", "i")
+                .Replace("ç", "c")
+                .Replace("ü", "u")
+                .Replace("ö", "o")
+                .Replace("ğ", "g")
+                .Replace("ş", "s");
+
+        }
+
+        private string GetCellValue(IXLRow row, Dictionary<string, int> columnIndices, string columnName)
+        {
+            columnName = columnName.ToUpper(); // Kolon adını büyük harfe çevir
+
+            if (!columnIndices.ContainsKey(columnName))
+            {
+                // Eğer kolon adı bulunamazsa null döndürelim ve loglayalım
+                Console.WriteLine($"Kolon bulunamadı: {columnName}");
+                return null; // Veya bir hata fırlatabiliriz.
+            }
+
+            var cell = row.Cell(columnIndices[columnName]);
 
             // Hücre tipi ve boşlukları kontrol et
-            string cellValue = cell?.GetValue<string>()?.Trim(); // Hücre boşsa null döner
-            return string.IsNullOrWhiteSpace(cellValue) ? null : cellValue; // Boşsa null döndür, aksi halde hücre değerini döndür
+            string cellValue;
+            if (cell.DataType == XLDataType.Text)
+            {
+                cellValue = cell.GetString().Trim();
+            }
+            else
+            {
+                cellValue = cell.Value.ToString().Trim();
+            }
+
+            return string.IsNullOrWhiteSpace(cellValue) ? null : cellValue;
+        }
+        private void dataGrid_SelectionChanged_3(object sender, SelectionChangedEventArgs e)
+        {
+
         }
         #endregion
-
         public static T CreateInstance<T>() where T : ISelectable
         {
             if (typeof(T) == typeof(IMusteri))
